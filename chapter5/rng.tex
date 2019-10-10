@@ -1,0 +1,255 @@
+	\section{Random Number Generators}
+		\subsection{cuRAND}
+		cuRAND ist eine Bibliothek zur Generierung von Pseudo- und Quasi-Zufallszahlen. Sie stellt ein \Gls{API} sowohl für Device als auch für Host zur Verfügung. Zur Benutzung inkludiert man den Header \textit{curand.h} für Host und \textit{curand{\_}kernel.h} für Device. Zusätzlich muss mit \textit{libcurand} gelinkt werden. Um gegen die statische Version zu linken wir folgendes Kommando empfohlen: 
+		
+		\li`g++ myCurandApp.c -lcurand_static -lculibos -lcudart_static -lpthread -ldl`
+		
+			\subsubsection{Pseudo Random}
+			Tabelle \ref{tab5:prng} zeigt die implementierten RNGs. Tabelle \ref{tab5:qrng} zeigt alle exisitierenden Verteilungen.
+			\begin{table}[h]
+			\centering
+			\begin{tabular}{|l|l|}
+				\hline
+				\textbf{Generator} & \textbf{Beschreibung} \\ \hline\hline
+				CURAND{\_}RNG{\_}PSEUDO{\_}XORWOW    & XOR-shift Algorithmus \\ \hline
+				CURAND{\_}RNG{\_}PSEUDO{\_}MRG32K3A  & Combined Multiple Recursive Algorithmus \\ \hline
+				CURAND{\_}RNG{\_}PSEUDO{\_}MT19937   & Mersenne Twister, CPU optimiert \\
+				                                     & verändertes Ordering, nur Host API, SM $\geq$ 3.5 \\ \hline
+				CURAND{\_}RNG{\_}PSEUDO{\_}MTGP32    & Mersenne Twister \\
+				                                     & GPU optimierte Parameter \\ \hline
+				CURAND{\_}RNG{\_}PHILOX4{\_}32{\_}10 & non-cryptographic Counter Based Algorithmus \\ \hline\bottomrule
+			\end{tabular}
+			\caption{Liste der Pseudo RNGs}
+			\label{tab5:prng}
+			\end{table}
+			
+			Zur Benutzung in der Host \Gls{API} muss zunächst ein Buffer erstellt werden. Dann wird ein Generator ausgewählt und mit einem bestimmten Seed initialisiert. Die selben Seeds produzieren die selben Sequenzen. Anschlie\ss end werden die Zufallszahlen anhand einer bestimmten Verteilung erzeugt. Tabelle \ref{tab5:dist} zeigt alle möglichen Verteilungen. Der Seed kann ebenfalls als Zufallszahl gesetzt werden, beispielsweise mit einem Speicherrauschen.
+			\begin{lstlisting}[caption=cuRAND: Host API]
+			uint n = ...;			
+			
+			float *data;
+			cudaMalloc((void **)&devData, n*sizeof(float));
+			
+			curandGenerator_t gen;
+			curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+			long long seed = ...;
+			curandSetPseudoRandomGeneratorSeed(gen, seed);
+			curandGenerateUniform(gen, devData, n);
+			
+			...
+			
+			curandDestroyGenerator(gen);
+			cudaFree(devData);
+			\end{lstlisting}	
+					
+			Die Zufallszahlen können auf den Host zurückkopiert, in einem anderen \Gls{API} verwendet oder in einem eigenen \Gls{Kernel} benutzt werden.
+			
+			\begin{table}[h]
+			\centering
+			\begin{tabular}{|l|l|}
+				\hline
+				\textbf{Verteilung} & \textbf{Beschreibung} \\ \hline\hline
+				\li`curandGenerate(...)` & 32bit Zufallszahlen, jedes Bit zufällig \\ \hline
+				\li`curandGenerateLongLong(...)` & 64bit Zufallszahlen, jedes Bit zufällig \\ \hline
+				\li`curandGenerateUniform(...)` & Uniforme Zufallszahlen im Bereich $(0,1]$ \\ \hline
+				\li`curandGenerateNormal(..., float m, float s)` & \multirowcell{2}{Normalverteilte Zufallszahlen mit \\ Mittelwert und Standardabweichung} \\
+				 & \\ \hline
+				\li`curandGenerateLogNormal(..., float mean, float stddv)` & Log-Normalverteilte Zufallszahlen \\ \hline
+				\li`curandGeneratePoisson(..., size_t n, double lambda)` & \multirowcell{2}{Ganzzahlen der Verteilung (für $\lambda > 0$) \\ $P(k)_{\lambda} = \lambda^k/k!\cdot\mathrm{e}^{-\lambda}$, $k=0,1,2...$} \\
+				 & \\ \hline
+				\li`curandGenerateUniformDouble(...)` & Doppelte Präzision \\ \hline
+				\li`curandGenerateNormalDouble(..., float mean, float stddv)` & Doppelte Präzision \\ \hline
+				\li`curandGenerateLogNormalDouble(..., float mean, float stddv)` & Doppelte Präzision \\ \hline\bottomrule
+			\end{tabular}
+			\caption{Liste der Pseudo RNGs}
+			\label{tab5:dist}
+			\end{table}
+			
+			Zur Benutzung des Device \Glspl{API} muss ein sogenannter State für jeden \Gls{Thread} erstellt werden. Dieser wird in einem eigenen \Gls{Kernel} erstellt.
+			Dazu muss die Funktion \li`curand_init` gerufen werden. Dieser wird ein Seed, eine Sequenznummer und ein Offset übergeben. Der Seed kann auf dem Host zufällig initialisiert werden. Die Sequenznummer hängt vom \Gls{Thread}index ab und ist damit für jeden \Gls{Thread} verschieden.
+			\begin{lstlisting}[caption=cuRAND: Device API States]
+			__global__ void setup_kernel(curandState *state)
+			{
+				uint id = threadIdx.x + blockIdx.x * blockDim.x;
+				curand_init(1234, id, 0, &state[id]);
+			}
+			
+			...
+			
+			uint n = ...;
+			curandState *devStates;
+			cudaMalloc(&devStates, n*sizeof(curandState));
+			setup_kernel<<<...,...>>>(devStates);		
+			\end{lstlisting}
+			
+			Nun kann in einem separaten \Gls{Kernel} anhand dieses States eine Verteilung benutzt werden. So muss pro Programm und \Gls{Thread} die langsame \li`curand_init` Funktion nur einmal gerufen werden. Um die Performance weiter zu verbessern, wird jeder State erst in den \gls{local Memory} kopiert und am Ende des \Glspl{Kernel} zurückkopiert. Werden mehrere Zufallszahlen benötigt, wird so der State in den Cache geladen.  \\ \\
+			\begin{lstlisting}[caption=cuRAND: Device API Generierung]
+			__global__ void generate_kernel(curandState *state, uint *result)
+			{
+				uint id = threadIdx.x + blockIdx.x * blockDim.x;
+
+				curandState localState = state[id];
+
+				result[id] = curand(&localState);
+				
+				state[id] = localState;
+			}
+			
+			...
+			
+			uint *devResults;
+			cudaMalloc(&devResults, n*sizeof(uint));
+			generate_kernel<<<...,...>>>(curandState *state, uint *devResults);
+			\end{lstlisting}
+			
+			Benötigt man einen anderen Generator, muss lediglich ein anderer State erzeugt werden:
+			\begin{itemize}
+			\item \li`curandState (XORWOW)`
+			\item \li`curandStatePhilox4_32_10_t`
+			\item \li`curandStateMRG32k3a`
+			\item \li`curandStateMtgp32_t`
+			\end{itemize}
+			
+			In Kapitel 3.1.4 der cuRAND Dokumentation befindet sich eine Liste aller Generatoren. \autocite{curandDoc}
+					
+			\subsubsection{Quasi Random} 
+			Neben den gewöhnlichen Pseudo Zufallszahlen werden des Öfteren sogenannte Quasi Zufallszahlen verwendet. Dies bezeichnet Sequenzen von Zahlen die im mathematischen Sinn eine geringe Diskrepanz aufweisen. Hauptanwendungsgebiet ist Monte-Carlo Integration, da Quasi-Monte-Carlo Integration unter bestimmten Umständen eine höhere Konvergenzgeschwindigkeit aufweist. Die bekannteste und schnellste ist die Sobol Sequenz. Zur Benutzung in der Host \Gls{API} muss lediglich ein entsprechender Generator aus Tabelle \ref{tab5:qrng} verwendet werden.
+			\begin{table}[h]
+			\centering
+			\begin{tabular}{|l|l|}
+				\hline
+				\textbf{Generator} & \textbf{Beschreibung} \\ \hline\hline
+				CURAND\_ RNG\_ QUASI\_ SOBOL32     & 32bit Sobol Sequenz \\ \hline
+				CURAND\_ RNG\_ QUASI\_ SCRAMBLED\_ SOBOL32 & Scrambled 32bit Sobol Sequenz \\ \hline
+				CURAND\_ RNG\_ QUASI\_ SOBOL64 & 64bit Sobol Sequenz \\ \hline
+				CURAND\_ RNG\_ QUASI\_ SCRAMBLED\_ SOBOL64 & Scrambled 64bit Sobol Sequenz \\ \hline\bottomrule
+			\end{tabular}
+			\caption{Liste der Quasi RNGs}
+			\label{tab5:qrng}
+			\end{table}
+			
+			Zur Benutzung in der Device \Gls{API} muss ein entsprechender State benutzt werden:
+			\begin{itemize}
+			\item \li`curandStateSobol32_t`
+			\item \li`curandStateScrambledSobol32_t`
+			\item \li`curandStateSobol64_t`
+			\item \li`curandStateScrambledSobol64_t`
+			\end{itemize}
+			
+			In Kapitel 3.2 der cuRAND Dokumentation befindet sich eine Liste der entsprechenden Verteilungen. \autocite{curandDoc}
+
+			\newpage						
+						
+		\subsection{Random mit OpenCL}
+			\subsubsection{clRNG}
+			\url{http://clmathlibraries.github.io/clRNG/htmldocs/index.html}
+			
+			\url{https://github.com/clMathLibraries/clRNG}			
+			\begin{lstlisting}[caption=clRNG Beispiel]
+			#define CLRNG_SINGLE_PRECISION                                  
+			#include <clRNG/mrg31k3p.clh>                                  
+                                                                
+			__kernel void example(__global clrngMrg31k3pHostStream *streams, 
+				__global float *out)
+			{                                                               
+				int gid = get_global_id(0);                                 
+                                                                      
+				clrngMrg31k3pStream workItemStream;                          
+				clrngMrg31k3pCopyOverStreamsFromGlobal(1, &workItemStream, 
+					&streams[gid]); 
+                                                                   
+				out[gid] = clrngMrg31k3pRandomU01(&workItemStream);       
+			}                                                                                                                               
+    
+			//////////////////////////////////////////////////////////////////////
+			
+			cl_int err, streamBufferSize, numWorkItems = ...;
+
+			clrngMrg31k3pStream *streams = clrngMrg31k3pCreateStreams(NULL, 
+				numWorkItems, &streamBufferSize, (clrngStatus *)&err);
+
+			cl_mem bufIn = clCreateBuffer(ctx, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, 
+				streamBufferSize, streams, &err);
+			cl_mem bufOut = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY | 
+				CL_MEM_HOST_READ_ONLY, numWorkItems * sizeof(cl_float), NULL, &err);
+			clSetKernelArg(kernel, 0, sizeof(bufIn),  &bufIn);
+			clSetKernelArg(kernel, 1, sizeof(bufOut), &bufOut);
+
+			clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &numWorkItems, 
+				NULL, 0, NULL, NULL);
+			\end{lstlisting}
+			
+			\subsubsection{clProbDist}
+			\url{http://umontreal-simul.github.io/clProbDist/htmldocs/index.html}
+			
+			\url{https://github.com/umontreal-simul/clProbDist}
+			\begin{lstlisting}[caption=clProbDist Beispiel]
+			#include <clProbDist/exponential.clh>                             
+                                                                          
+			__kernel void example(__global const clprobdistExponential *dist, 
+				__global double *out)                       
+			{                                                                 
+				int gid = get_global_id(0);                                   
+				int gsize = get_global_size(0);                               
+				
+				double quantile = (gid + 0.5) / gsize;                        
+				out[gid] = clprobdistExponentialInverseCDFWithObject(dist, 
+					quantile, (void *)0); 
+			} 
+			 
+			//////////////////////////////////////////////////////////////////////
+			
+			cl_int err, distBufferSize, numWorkItems = ...;
+			clprobdistExponential *dist;
+			dist = clprobdistExponentialCreate(1.0, &distBufferSize, 
+				(clprobdistStatus *)&err);    
+			
+			cl_mem bufIn = clCreateBuffer(ctx, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, 
+				distBufferSize, dist, &err);
+			cl_mem bufOut = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY | 
+				CL_MEM_HOST_READ_ONLY, numWorkItems * sizeof(cl_double), NULL, &err);
+			clSetKernelArg(kernel, 0, sizeof(bufIn),  &bufIn);
+			clSetKernelArg(kernel, 1, sizeof(bufOut), &bufOut);
+			
+			clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &numWorkItems, 
+				NULL, 0, NULL, NULL);		
+			\end{lstlisting}
+			
+			\subsubsection{clQMC}
+			\url{http://umontreal-simul.github.io/clQMC/htmldocs/index.html}
+			
+			\url{https://github.com/umontreal-simul/clQMC}
+			\begin{lstlisting}[caption=clQMC Beispiel]    
+			#define CLQMC_SINGLE_PRECISION                                 
+			#include <clQMC/latticerule.clh>                               
+                                                                       
+			__kernel void example(__global const clqmcLatticeRule *lat, 
+				__global float *out)                     
+			{                                                              
+				int gid = get_global_id(0);                                
+				int gsize = get_global_size(0);                            
+				int dim = clqmcLatticeRuleDimension(lat);                  
+                                                                       
+				clqmcLatticeRuleStream stream;                             
+				clqmcLatticeRuleCreateOverStream(&stream, lat, gsize, gid, (void*)0);  
+				for (int j = 0; j < dim; j++) 
+					out[j * gsize + gid] = clqmcLatticeRuleNextCoordinate(&stream); 
+			}
+			
+			cl_int err, latBufferSize, numWorkItems = ...;
+			clqmcLatticeRule *lat;               
+			lat = clqmcLatticeRuleCreate(numWorkItems, 3, (cl_int[]){1, 27, 15}, 
+				&latBufferSize, (clqmcStatus *)&err);  
+
+			cl_mem bufIn = clCreateBuffer(ctx, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, 
+				latBufferSize, lat, &err);
+			cl_mem bufOut = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY | 
+				CL_MEM_HOST_READ_ONLY, numWorkItems*clqmcLatticeRuleDimension(lat) 
+				*sizeof(cl_float), NULL, &err);
+			clSetKernelArg(kernel, 0, sizeof(bufIn),  &bufIn);
+			clSetKernelArg(kernel, 1, sizeof(bufOut), &bufOut);
+
+			clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &numWorkItems, 
+				NULL, 0, NULL, NULL);
+			\end{lstlisting}
+			

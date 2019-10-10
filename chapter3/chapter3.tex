@@ -1,0 +1,560 @@
+	\chapter{Einf\"uhrung in Nvidia CUDA}
+	Seit 2007 existiert das Nvidia Produkt \textit{Compute Unified Device Architecture} (CUDA). Dabei handelt es sich um eine Programmiersprache, eine Compilerarchitektur, eine Runtime-Library oder kurz um eine Platform. CUDA lässt sich mit dem Nvidia CUDA Toolkit leicht auf Linux, MacOS oder Windows installieren und bringt dabei mehrere HPC Bibliotheken mit. Auf einige soll später noch eingegangen werden. Die wichtigsten Vertreter sind:
+	\begin{itemize}
+		\item \textbf{cuBLAS}:   Die CUDA Implementierung der \textit{Basic Linear Algebra Subprograms}.
+		\item \textbf{curand}:   Ein Zufallszahlen-Generator (RNG) und verschiedene Verteilungen.
+		\item \textbf{cuSOLVER}: Eine Implementierung der beliebtesten Matrixzerlegungen.
+		\item \textbf{THRUST}:   Die CUDA Implementierung der C++ Standard Template Library (STL).
+	\end{itemize}
+	Andere prominente Vertreter sind cuDNN, TensorRT und offizielle Partnerprojekte wie MAGMA, GROMACS oder Tensorflow.
+				
+		
+		\section{C Runtime}
+		Ein Hauptprogramm auf der CPU wird üblicherweise in C oder C++ geschrieben. Wahlweise lässt sich auch ein \Gls{API} in einer anderen Programmiersprache benutzen, z.B. pyCUDA in Python. Dieses Programm läuft wie gewohnt auf der CPU und wird fortan als Hostcode bezeichnet. Eine sehr rechenintensive Stelle im  Hostcode soll nun auf die GPU ausgelagert werden. Im gleichen Quellcode wird nun in der Programmiersprache CUDA ein sogenanntes \Gls{Kernel} definiert.
+			\subsection*{Kernels}
+			\Glspl{Kernel} sind sehr kleine Recheneinheiten, die parallel auf der GPU ausgeführt werden sollen. Der folgende Code zeigt ein \Gls{Kernel} zur Addition zweier Vektoren.
+	  		\begin{lstlisting}[caption=~Vektoraddition Kernel]
+				__global__ void VecAdd(float* A, float* B, float* C, int N)
+				{
+    				int i = threadIdx.x;
+    				if (i < N)
+        				C[i] = A[i] + B[i];
+				}
+				
+				...
+				
+				int main()
+				{		
+					...
+					VecAdd<<<1, N>>>(A, B, C, N) ;
+					...
+				}
+			\end{lstlisting}
+			
+			\Glspl{Kernel} werden immer mit dem Keyword \li`__global__` deklariert und der return Typ ist immer \li`void`. \Gls{Kernel}aufrufe erfolgen asynchron, d.h. die CPU schickt den Auftrag lediglich ab und arbeitet dann weiter den Hostcode ab. Mehrere \Gls{Kernel}aufrufe hintereinander werden auf der GPU serialisiert.
+			
+			Die spitzen Klammern geben an, mit welchen \Glspl{Thread} der Code ausgeführt werden soll. Im obigen Fall wird das \Gls{Kernel} mit $N$ \Glspl{Thread} gestartet. Ausnahmslos jeder dieser \Glspl{Thread} erhält das \Gls{Kernel} und führt den Code aus: Jeder \Gls{Thread} rechnet sich seinen Index aus (entspricht dem Prozessor-rank). Jeder \Gls{Thread} nimmt einen Wert von A und B, rechnet die Summe aus und schreibt genau einen Wert von C. Ein \Gls{Kernel} kann man sich also so vorstellen, als würde man eine Schleife ausrollen und jedes Element einzeln und parallel berechnen. \Glspl{Kernel} können nicht auf Hostcode zugreifen.
+			
+			Zur besseren Steuerung der \Glspl{Thread} teilt man diese in \Glspl{Block} ein:
+			
+			\newpage 
+			
+			\begin{lstlisting}[caption=~Kernelaufruf]		
+				int main()
+				{
+					int threadsPerBlock = 32;
+					int blocksPerGrid = N / threadsPerBlock;
+					
+					...
+					
+					VecAdd<<<blocksPerGrid, threadsPerBlock>>>(A, B, C, N);
+					
+					...					
+				}
+			\end{lstlisting}
+
+			In diesem Beispiel übergibt man im ersten Element zwischen den spitzen Klammern die Zahl an \Glspl{Block}n und im zweiten die Zahl an \Glspl{Thread} pro \Gls{Block}. Beide Zahlen multipliziert ergeben also die Zahl an \Glspl{Thread} insgesamt. Mittels \li`blockIdx.x*blockDim.x + threadIdx.x` berechnet man den globalen Index eines \Glspl{Thread}. Die \Glspl{MTIU} verteilen die \Glspl{Block} dann automatisch auf die \Gls{SM}. Sollten mehr \Glspl{Thread} involviert werden als tatsächlich zur Verfügung stehen, so wird zuerst eine passende Anzahl verteilt und dann für die restlichen \Glspl{Block} wiederholt. Der Index zählt dabei korrekt weiter, da er von der ID des \Gls{Block}s abhängt.
+			
+			Falls das \Gls{Kernel} eine Funktion aufrufen soll, so muss diese extra für das Device geschrieben werden. Dazu deklariert man diese Funktionen mit dem Keyword \li`__device__`. Analog dazu werden gewöhnliche Funktionen auf der CPU mit \li`__host__` deklariert. Wird kein Keyword geschrieben, so handelt es sich um eine Host Funktion. Wird eine Funktion mit beidem deklariert, so wird die Funktion für Device und Host kompiliert. Device Funktionen können nicht vom Host gerufen werden und umgekehrt. Eine Device Funktion darf einen return Wert haben.
+			
+			\subsection*{C++ Kompatibilit\"at}
+			Die Programmiersprache CUDA orientiert sich an C11. Es können alle Features dieses Standards benutzt werden. C++ Code als Device Code zu schreiben ist allerdings wesentlich schwieriger und wurde daher nur teilweise implementiert. Eine Liste der C++ Features enthält der CUDA Programming Guide in Anhang F. \autocite{cudaPG} 
+			
+			
+		\section{Speichermodell}
+		Eine GPU kennt mindestens fünf Arten von Speicher:
+		\begin{itemize}
+			\item \Gls{global Memory}: Daten, die vom CPU Speicher kopiert werden, werden in diesem gespeichert. Dieser Speicher ist ausnahmslos allen \Glspl{Thread} zugänglich.
+			\item \Gls{constant Memory}: Ein ebenfalls globaler Speicher. Konstante Variablen werden so read-only abgespeichert und verhalten sich ähnlich den konstanten Variablen in C (Vermeidung von Bankkonflikten).
+			\item \Gls{local Memory}: Jeder \Gls{Thread} verfügt über einen sehr kleinen Speicher für Hilfsvariablen, die nur diesem zugänglich sind. Definiert man eine Variable im Devicecode, so wandert sie in den lokalen Speicher (z.B. der Index \li`int i`). Dieser Speicher ist ähnlich langsam wie \gls{global Memory}, wird aber in einen Cache geladen.
+			\item \Gls{shared Memory}: Ein kleiner, extrem schneller Speicher, den sich jeweils die \Glspl{Thread} einer \Gls{SM} teilen. Pro \Gls{SM} ist ein Element in der GPU integriert.
+			\item \Gls{texture Memory}: Ein interpolierender, globaler Speicher, der für Texturen, also multidimensionale Speicherstrukturen optimiert wurde.
+		\end{itemize}
+		
+		Um die Vektoraddition von oben durchzuführen, muss die CPU zunächst die Vektoren in den \Gls{global Memory} kopieren. Folgendes Beispiel illustriert dies:		
+		\begin{lstlisting}[caption=~Vektoraddition Host]
+			uint N = 256;
+			uint size = N∗sizeof(float);
+			float ∗h_A = (float ∗)malloc(size);
+			float ∗h_B = (float ∗)malloc(size);
+			float ∗h_B = (float ∗)malloc(size);
+
+			float ∗d_A;
+			cudaMalloc(&d_A, size);
+			float ∗d_B;
+			cudaMalloc(&d_B, size);
+			float ∗d_C;
+			cudaMalloc(&d_C, size);
+			
+			
+			cudaMemcpy(d_A, h_A, size, cudaMemcpyHostToDevice);
+			cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice);
+
+			int threadsPerBlock = 32;
+			int blocksPerGrid = N / threadsPerBlock ;
+			VecAdd<<<blocksPerGrid, threadsPerBlock>>>(d_A, d_B, d_C, N);
+			cudaMemcpy(h_C, d_C, size, cudaMemcpyDeviceToHost);
+			
+			cudaFree(d_A); cudaFree(d_B); cudaFree(d_C);
+			free(h_A); free(h_B); free(h_C);
+		\end{lstlisting}	
+		
+		Der Befehl \li`cudaMalloc` erstellt einen Buffer der richtigen Größe im \Gls{global Memory}.
+		Der Befehl \li`CudaMemcpy` kopiert dann den gesamten speicher des Hostvektors in den Devicevektor auf der Grafikkarte. Für eine einzelne Variable ($N$) ist dies nicht notwendig.
+		Nachdem das Kernel abgeschickt wurde, wird der Ergebnisvektor auf den Host zurückkopiert.
+		Hinter \li`cudaMemcpy` verbirgt sich ein impliziter \Gls{Kernel}aufruf, der synchron abläuft, d.h. die CPU muss warten bis das \Gls{Kernel} ausgeführt wurde. Es ist zu beachten, dass \Gls{Kernel}aufrufe normalerweise asynchron laufen, also die CPU nicht blockieren (non-blocking).	 Speicher auf dem Device wird mit \li`cudaFree` freigegeben.
+		
+		\Gls{shared Memory} wird mit dem Keyword \li`__shared__` deklariert. Der erste \Gls{Thread}, der in einem \Gls{Kernel} auf eine solche Instruktion trifft, legt eine Variable im \gls{shared Memory} der entsprechenden Größe an. Diese Variable teilen sich dann alle \Glspl{Thread} eines \Gls{Block}s. Existieren insgesamt $n$ \Glspl{Block}, so existieren auch $n$ verschiedene Variablen.
+		\begin{lstlisting}[caption=~shared Memory statisch]
+			__global__ void test()
+			{
+  				__shared__ int s[64];
+  				...
+			}
+  		\end{lstlisting}
+
+		Im Gegensatz zur statischen Variante lässt sich \gls{shared Memory} auch dynamisch allozieren:  		
+  		\begin{lstlisting}[caption=~shared Memory dynamisch]
+			__global__ void test()
+			{
+  				extern __shared__ int s[];
+  				...
+			}
+			
+			int main()
+			{
+				...
+				int shared_memory_size = ...
+				test<<<1, num_threads, shared_memory_size>>>();
+				...
+			}			
+  		\end{lstlisting}
+  		
+        Dem \Gls{Kernel} muss die Größe des \gls{shared Memory} mitgegeben werden. 
+        
+        Sollen mehrere Arrays im \gls{shared Memory} abgelegt werden, so definiert man sich lediglich Pointer auf ein großes Gesamtarray. Der Beginn des jeweils neuen Arrays muss dabei dem Ende des vorangegangenen entsprechen.  	  		
+  		\begin{lstlisting}	[caption=~shared Memory verteilt]	
+			extern __shared__ int s[];
+			int *integerData = s;                        
+			float *floatData = (float*)&integerData[nI];
+			char *charData = (char*)&floatData[nF];
+			
+			...
+			
+			test<<<gridSize, blockSize, 
+				nI*sizeof(int) + nF*sizeof(float) + nC*sizeof(char)>>>(...);
+		\end{lstlisting}
+
+		Im folgenden Beispiel wird die Vektoraddition umgeschrieben, um sich die Vektoren A und B in den \gls{shared Memory} zu laden:	
+		
+		\newpage
+		
+		\begin{lstlisting}[caption=~Vektoraddition shared Memory]
+			__global__ void VecAdd(float* A, float* B, float* C, int N)
+			{
+    			int i = blockDim.x * blockIdx.x + threadIdx.x;
+    			int tid = threadIdx.x;
+    			
+    			__shared__ float As[blockDim.x];
+    			__shared__ float Bs[blockDim.x];
+    			
+    			if (i < N)
+    			{
+    			    As[tid] = A[i];
+    			    Bs[tid] = B[i];
+    			    
+    			    ...
+    			    
+        			C[i] = As[tid] + B[tid];
+        		}
+			}
+		\end{lstlisting}
+		
+		Da ohnehin einmal \li`A[i]` und \li`B[i]` aus dem Speicher geladen werden müssen, ist es hier unsinnig, den Speicher überflüssigerweise zu kopieren. Allerdings könnten ja vor der Addition \li`As` und \li`Bs` noch mehrmals gebraucht werden. Die Aufgabe des Programmierers ist es nun herauszufinden, bei welcher Datengröße abhängig vom Algorithmus der \Gls{Performance}gewinn durch die höhere Bandbreite den Verlust durch das Kopieren übersteigt.
+		
+		\Gls{constant Memory} wird mit dem Keyword \li`__constant__` als globale Variable deklariert. Mit dem Befehl \li`cudaMemcpyToSymbol` wird diese dann in den Speicher der GPU kopiert und steht dort dann auch global zur Verfügung, muss also beim \Gls{Kernel}aufruf nicht explizit angegeben werden:
+		\begin{lstlisting}[caption=~Vektoraddition constant Memory]
+			__constant__ float d_A[12800];
+			__global__ void VecAdd(float* B, float* C, int N)
+			{
+    			int i = blockDim.x * blockIdx.x + threadIdx.x;
+    			if (i < N)
+        			C[i] = d_A[i] + B[i];
+			}
+			
+			...
+			
+			cudaMemcpyToSymbol(d_A, h_A, size);
+			VecAdd<<<blocksPerGrid, threadsPerBlock>>>(d_B, d_C, N);
+		\end{lstlisting}
+		
+		Der \gls{constant Memory} ist ebenfalls ein globaler Speicher und steht jedem \Gls{Thread} zur Verfügung. Allerdings müssen Aufrufe der selben Stelle im Speicher innerhalb eines \Glspl{Warp} nicht serialisiert werden (Bankkonflikt). Daher eignet sich dieser Speicher besonders für konstante Skalare, z.B. Naturkonstanten.
+		
+		\section{Mehrdimensionale Bl\"ocke}
+		Bisher wurden \Gls{Kernel} immer nur mit eindimensionalen \Glspl{Block}n und \Glspl{Grid} ausgeführt. Allerdings verbirgt sich dahinter ein impliziter Typecast. Zum Beispiel wird \li`<<<1,N>>>` zu \li`<<<dim3(1,1,1), dim3(N,1,1)>>>`. \li`dim3` bezeichnet dabei eine eingebaute Datenstruktur, die aus drei vorzeichenlosen Ganzzahlen besteht. In diesem Fall gibt sie die Anzahl der \Glspl{Block} im \Gls{Grid} bzw. der \Glspl{Thread} pro \Gls{Block} in die Raumrichtungen \li`(x,y,z)` an. Das \Gls{Grid} und die \Glspl{Block} sind also keine Ketten sondern Quader von Objekten. Die Indizes der \Glspl{Block} und \Glspl{Thread} lassen sich dann Spalten-, Zeilen- und Ebenenweise abfragen: 			
+		\begin{lstlisting}[caption=~Multidimensionale Blöcke]
+			__global__ test()
+			{
+				int row = blockIdx.y * blockDim.y + threadIdx.y;
+				int col = blockIdx.x * blockDim.x + threadIdx.x;
+				...
+			}
+    		
+    		...
+
+		    dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
+    		dim3 dimGrid(GRID_SIZE, GRID_SIZE;
+    		test<<<dimGrid, dimBlock>>>();
+		\end{lstlisting}
+        In diesem Fall werden also \Glspl{Block} der Größe \li`BLOCK_SIZE`$\times$\li`BLOCK_SIZE` in einem \Gls{Grid} mit \li`GRID_SIZE`$\times$\li`GRID_SIZE` \Glspl{Block}n angeordnet. Bei modernen GPUs ist die Obergrenze für die Dimension der \Glspl{Block} \li`(1024,1024,64)`.
+        
+        Das folgende Beispiel behandelt die Matrixmultiplikation unter Zuhilfenahme von \gls{shared Memory} und Multidimensionalen \Glspl{Block}n:       
+        \begin{lstlisting}[caption=~Matrixmultiplikation]
+			#define BLOCK_SIZE 16
+        	
+			typedef struct
+			{
+				uint width;
+				uint height;
+				float* elements;
+				uint stride;
+			} Matrix;
+
+			__device__ 
+			float GetElement(const Matrix A, uint row, uint col)
+			{
+				return A.elements[row * A.stride + col];
+			}
+
+			__device__ 
+			void SetElement(Matrix A, uint row, uint col, float value)
+			{
+				A.elements[row * A.stride + col] = value;
+			}
+			
+			__device__
+			Matrix GetSubMatrix(Matrix A, uint row, uint col) 
+			{
+				Matrix Asub;
+				Asub.width    = BLOCK_SIZE;
+				Asub.height   = BLOCK_SIZE;
+				Asub.stride   = A.stride;
+				Asub.elements = &A.elements[A.stride * BLOCK_SIZE * row 
+					+ BLOCK_SIZE * col];
+				return Asub;
+			}	
+			
+
+
+
+
+       
+			__global__ 
+			void MatMulKernelShared(const Matrix A, const Matrix B, Matrix C)
+			{    
+    			uint blockRow = blockIdx.y;
+    			uint blockCol = blockIdx.x;
+
+    			Matrix Csub = GetSubMatrix(C, blockRow, blockCol);
+    
+    			float Cvalue = 0;
+
+    			uint row = threadIdx.y;
+    			uint col = threadIdx.x;
+
+    			for (uint m = 0; m < (A.width / BLOCK_SIZE); ++m)
+    			{
+					Matrix Asub = GetSubMatrix(A, blockRow, m);
+					Matrix Bsub = GetSubMatrix(B, m, blockCol);
+
+					__shared__ float As[BLOCK_SIZE][BLOCK_SIZE];
+					__shared__ float Bs[BLOCK_SIZE][BLOCK_SIZE];
+					As[row][col] = GetElement(Asub, row, col);
+					Bs[row][col] = GetElement(Bsub, row, col);
+
+					__syncthreads();
+
+					for (uint e = 0; e < BLOCK_SIZE; ++e)
+							Cvalue += As[row][e] * Bs[e][col];
+
+					__syncthreads();
+				}
+
+			SetElement(Csub, row, col, Cvalue);
+			}
+        \end{lstlisting}
+        
+        Abbildung \ref{fig3:matmul} zeigt klar, dass \gls{shared Memory} die bessere Alternative zu einer naiven Implementierung ist.
+        
+        \begin{figure}[h]
+  		\centering
+  		\scalebox{1.3}{
+  		\begin{tikzpicture}
+    		\begin{axis}[/pgf/number format/.cd, use comma, 1000 sep={}, xlabel={dimension $n$}, ylabel={computation time / sec.}, legend pos=outer north east, legend style={cells={align=left}}]
+      		\addplot [draw=UR@color@12!50!black, mark=*, only marks, mark options={scale=.5}, fill=UR@color@12!50!white]   table[x index=0, y index=1]{/home/kat10110/script/chapter3/plots/matmul.dat};
+      		\addlegendentry{ohne shared memory}
+      		\addplot [draw=gray!50!black, mark=*, only marks, mark options={scale=.5}, fill=gray!50!white] table[x index=0, y index=2]{/home/kat10110/script/chapter3/plots/matmul.dat};
+      		\addlegendentry{mit shared memory}     
+    		\end{axis}
+    	\end{tikzpicture}}
+  		\caption[Matrixmultiplikation shared Memory]{Laufzeitvergleich von Matrixmultiplikationen der Größ e $n\times n$ mit und ohne shared Memory. Zum Einsatz kam eine \textit{Nvidia GTX 1060}.}
+  		\label{fig3:matmul}
+		\end{figure}
+        
+        Dieser Algorithmus ist nicht ohne Weiteres anwendbar, falls sich die Matrizen nicht bequem auf gleich große \Glspl{Block} verteilen lassen.
+        
+        Aus den genannten Beispielen ergeben sich Merkregeln für die Wahl der \Gls{Thread}zahl pro \Gls{Block}:
+        \begin{itemize}
+        	\item Die Anzahl sollte ein Vielfaches von 32 sein, um unregelmäßiges Arbeiten der \Glspl{Warp} zu verhindern.
+        	\item Die Anzahl sollte ein Vielfaches der Anzahl von \Glspl{Thread} pro \Gls{SM} sein, um unregelmäßiges Mapping von physischem Speicher in den selben Adressraum zu verhindern.
+        	\item Die Anzahl sollte so gewählt sein, dass sich die gesamte Problemgröße, also ein oder mehrere \Glspl{Grid}, exakt auf gleich große \Glspl{Block} verteilen lässt.
+        	\item Die Gesamtzahl der \Glspl{Thread} im \Gls{Grid} sollte ein Vielfaches der insgesamt in Hardware zur Verfügung stehenden \Glspl{Thread} sein, um die GPU voll auszulasten.
+        \end{itemize}
+        
+        Da in der Praxis diese Punkte kaum alle einzuhalten sind, ist ein Blackbox-Verfahren für die GPU schwer oder gar nicht zu programmieren. Man sollte also bereits bei der Erzeugung von Messdaten in einem Experiment oder in einer Simulation auf vernünftige Problemgrößen achten, andernfalls muss man mit \Gls{Performance}einbußen rechnen.
+        								
+		\section{Error Handling}
+		Beinahe jeder \Gls{API}-Call liefert einen speziellen CUDA-Datentyp namens \li`cudaError_t`. Folgende Funktion fragt diesen Wert ab und gibt einen Fehlerstring zurück:		
+		\begin{lstlisting}[caption=~Error Handling]
+			#define CUDA_ERROR_CHECK
+
+			#define CudaCheckError()  __cudaCheckError(__FILE__, __LINE__)
+
+			inline void __cudaCheckError(const char *file, const int line)
+			{
+			#ifdef CUDA_ERROR_CHECK
+				cudaError err = cudaGetLastError();
+				if(cudaSuccess != err)
+				{
+					fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
+					file, line, cudaGetErrorString(err));
+					exit(-1);
+				}
+
+    			err = cudaDeviceSynchronize();
+    			if(cudaSuccess != err)
+    			{
+        			fprintf(stderr, "cudaCheckError() with sync failed at 
+        				%s:%i : %s\n",
+					file, line, cudaGetErrorString(err));
+					exit(-1);
+				}
+			#endif
+
+				return;
+			}
+		\end{lstlisting}
+		
+		Mittels \li`cudaGetLastError` wird der letzte Fehler untersucht. Da \Glspl{Kernel} asynchron laufen, kann es nötig sein, mittels \li`cudaDeviceSynchronize` zu synchronisieren, d.h. alle \Glspl{Kernel} müssen ausgeführt worden sein, bevor die CPU weiter Code ausführen darf. Falls dies nicht nötig ist, sollte die Zeile kommentiert werden. Um Rechenzeit zu sparen, kann durch das \li`CUDA_ERROR_CHECK` Makro diese Funktion zur Compile-Zeit entfernt werden.
+		
+		CUDA Librarys (z.B. cuDNN oder cuRAND) definieren oft neue Datentypen für Fehler. Diese Funktion kann also in mehreren Variationen nötig sein.
+
+
+		\section{Stream Processing}
+		\subsection{Events}
+        Um die Laufzeit zu messen, eignen sich CUDA-Events:		
+		\begin{lstlisting}[caption=~Events]
+			cudaEvent_t start, stop;
+			cudaEventCreate(&start);
+			cudaEventCreate(&stop);
+
+			cudaEventRecord(start, 0);
+			//zu messender Code//
+			cudaEventRecord(stop, 0);	
+		
+			cudaEventSynchronize(stop);
+			float milliseconds = 0;
+			cudaEventElapsedTime(&milliseconds, start, stop);
+		
+			cudaEventDestroy(start);
+			cudaEventDestroy(stop);
+		\end{lstlisting}
+
+		Mit \li`cudaEventRecord` werden zwei Events aufgezeichnet. Die null am Ende teilt die Events dem Stream mit Nummer 0 zu (siehe \ref{streams}). Wird diese Angabe unterdrückt, so werden die Aufrufe dem default-Stream zugeordnet. Nach dem Aufruf \li`cudaEventSynchronize`, also sobald das Event \li`stop` stattgefunden hat, kann mittels \li`cudaEventElapsedTime` die vergangene Zeit zwischen \li`start` und \li`stop` in Millisekunden gemessen werden.
+		
+		Zudem existiert \li`cudaError_t cudaEventQuery(cudaEvent_t event)`. Diese Funktion liefert dann einen Erfolg, falls das betreffende Event stattgefunden hat.
+		
+		Außerdem lassen sich mittels \li`cudaError_t cudaEventCreateWithFlags(cudaEvent_t* event, unsigned int flags)` Events mit Flags definieren, die sich in der Dokumentation der CUDA Runtime \Gls{API} nachlesen lassen. \autocite{cudaRTAPI}
+		
+      
+		\subsection{Device Auswahl}
+		Mittels \li`cudaGetDeviceCount` lässt sich ermitteln, über wie viele CUDA-fähige Grafikkarten die Platine, auf der die CPU sitzt, verfügt. Für jedes Gerät einzeln können dann die Eigenschaften des Geräts abgefragt werden.
+		
+		Die Geräte lassen sich mit \li`cudaSetDevice` manuell umschalten. Speicher der einen GPU lässt nur dann von der anderen abrufen, wenn der Peer-to-Peer Access mit \li`cudaDeviceEnablePeerAccess` aktiviert oder der Speicher explizit zwischen den GPUs kopiert wird. Die null am Ende teilt die Events dem Stream mit Nummer 0 zu (siehe \ref{streams}). Wird diese Angabe unterdrückt, so werden die Aufrufe dem default-Stream zugeordnet.
+		\begin{lstlisting}[caption=~Device Peer-to-Peer Access]
+			int deviceCount;
+			cudaGetDeviceCount(&deviceCount);
+
+			cudaDeviceProp deviceProp;
+			cudaGetDeviceProperties(&deviceProp, 0);
+			printf("Device %d has compute capability %d.%d.\n",
+    			device, deviceProp.major, deviceProp.minor);
+           
+			cudaSetDevice(0);
+			float* p0;
+			cudaMalloc(&p0, size);
+			test<<<...>>>(p0);
+			
+			cudaSetDevice(1);
+			float* p1;
+			cudaMalloc(&p1, size);
+			test<<<...>>>(p1);
+			
+			
+			
+			cudaDeviceEnablePeerAccess(0, 0);
+			test<<<...>>>(p0);
+			
+			cudaMemcpyPeer(p1, 1, p0, 0, size);
+		\end{lstlisting}
+
+	
+		\subsection{Streams}\label{streams}
+		Eine Menge von Instruktionen, die der Reihe nach abgearbeitet werden sollen, heißt \Gls{Stream}. Jene \Glspl{Stream} lassen sich beliebig erstellen und zerstören (\li`cudaStreamCreate`, \li`cudaStreamDestroy`). In folgendem Beispiel wird dynamisch eine Zahl von \Glspl{Stream} erstellt. Dann wird ein entsprechender Teil eines Gesamtarrays kopiert und ein Kernel ausgeführt. Damit dies in Reihe geschieht, werden sowohl \Gls{API}-calls als auch auch \Gls{Kernel} einem \Gls{Stream} zugeordnet.	
+		\begin{lstlisting}[caption=~Streams]
+			uint stream_num = ...;
+			uint size = ...;	    
+			float* hostPtr;
+			cudaMallocHost(&hostPtr, stream_num * size);	
+			//inputDevPtr allozieren und kopieren//
+			cudaStream_t stream[stream_num];
+			for (int i = 0; i < stream_num; ++i)
+			{
+				cudaStreamCreate(&stream[i]);
+    			
+				cudaMemcpyAsync(inputDevPtr + i * size, hostPtr + i * size,
+					size, cudaMemcpyHostToDevice, stream[i]);
+    			
+				MyKernel <<<100, 512, 0, stream[i]>>>
+					(outputDevPtr + i * size, inputDevPtr + i * size, size);
+				
+				cudaMemcpyAsync(hostPtr + i * size, outputDevPtr + i * size,
+					size, cudaMemcpyDeviceToHost, stream[i]);
+								
+				cudaStreamDestroy(stream[i]);
+			}
+		\end{lstlisting}
+
+		Die Idee dahinter ist, die CPU möglichst wenig zu blockieren und möglichst viele \Gls{Kernel} gleichzeitig auszuführen. Da ein normaler Kopierbefehl automatisch synchronisiert, muss die Kopie asynchron erfolgen. Mittels \li`cudaMallocHost` wird dafür sog. \gls{page-locked Memory} alloziert. Dieser Speicher darf vom Betriebssystem nicht verschoben werden und kann daher immer unter der selben Speicheradresse gefunden werden.
+		
+		Wird kein \Gls{Stream} angegeben, so wird der default-\Gls{Stream} verwendet.	
+		
+		Um die CPU auf einen bestimmten \Gls{Stream} warten zu lassen, kann \li`cudaStreamSynchronize` verwendet werden. \li`cudaStreamQuery` liefert genau dann einen Erfolg, wenn der \Gls{Stream} erfolgreich beendet worden.	
+		
+		\li`cudaStreamWaitEvent` beginnt mit der Ausführung eines \Glspl{Stream} erst, sobald ein bestimmtes Event aufgezeichnet wurde. Dieses Event kann ebenfalls einem \Gls{Stream} zugeordnet werden (\li`cudaEventRecord(start, stream[i])`).
+		
+		So lassen sich z.B. Abfragen erstellen,
+		
+		\li`if((cudaStreamQuery(stream[i]) == cudaSuccess) && (cudaEventQuery(stop) == cudaSuccess))...`
+		
+		mit denen man in Kombination mit der Device-Auswahl ganze Bäume von \Gls{Kernel}aufrufen erstellen kann. Auf Clustern kann man sich dies zu Nutze machen, um exakt den zeitlichen Ablauf von \Glspl{Kernel}s zu steuern.
+		
+		\newpage
+		
+		\subsection{Synchronisation}
+		Explizite Synchronisierungsfunktionen:
+		
+		\begin{lstlisting}[caption=~Explizite Synchronisierung]
+			__host__ cudaError_t cudaDeviceSynchronize(void)
+			__host__ cudaError_t cudaStreamSynchronize(cudaStream_t)
+			__host__ cudaError_t cudaEventSynchronize(cudaEvent_t)	
+			__device__ void __syncthreads()
+			__device__ void __syncwarp()
+		\end{lstlisting}
+		Erstere bildet für die CPU eine Barriere, bis sämtliche Kernels abgearbeitet wurden.
+		
+		Implizite Synchronisierung:
+		\begin{itemize}
+        	\item page-locked Host Memory Allozierung
+			\item Device Memory Allozierung
+			\item Setzen von Device Memory 
+			\item Kopie zwischen zwei Adressen innerhalb desselben Device Memory
+			\item ein beliebiges CUDA Kommando den 0-\Gls{Stream} betreffend,
+			\item ein Wechsel zwischen L1/\gls{shared Memory} Konfigurationen beschrieben in \gls{compute capability} 3.x und \gls{compute capability} 7.x
+		\end{itemize}
+		
+		\begin{figure}[h]
+  		\centering
+  		\scalebox{1.5}{
+  		\begin{tikzpicture}
+    		\begin{axis}[xlabel={dimension $n$}, ylabel={computation time / msec.}]
+      		\addplot [draw=UR@color@12, mark=*, only marks, mark options={scale=.2}, fill=UR@color@12]   table[x index=0, y index=1]{/home/kat10110/script/chapter3/plots/prec.dat} node [below]{half};
+      		%
+      		\addplot [draw=gray!70!white, mark=*, only marks, mark options={scale=.2}, fill=gray!70!white] table[x index=0, y index=2]{/home/kat10110/script/chapter3/plots/prec.dat} node [left]{single~~~~~};
+      		%
+      		\addplot [draw=UR@color@12!50!black, mark=*, only marks, mark options={scale=.2}, fill=UR@color@12!50!black] table[x index=0, y index=3]{/home/kat10110/script/chapter3/plots/prec.dat} node [left]{double~~~~};    
+    		\end{axis}
+    	\end{tikzpicture}}
+  		\caption[Axpy mit verschiedenen Präzisionen]{Laufzeitvergleich von Axpy-Operation ($\vec{y}\rightarrow a\cdot\vec{x}+\vec{y}$) der Grö\ss e $n$ mit half, single- und double-Präzision. Zum Einsatz kam eine \textit{Nvidia GTX 1060}.}
+  		\label{fig3:axpy}
+		\end{figure}
+		
+		
+		\subsection*{\textcolor{red}{Divergenz}}
+		Synchronisation ist nich nur aufgrund von Abhängigkeiten in Algorithmen notwendig. Wenn innerhalb eines \Glspl{Warp} zwei \Glspl{Thread} zur selben Zeit unterschiedliche Instruktionen erhalten sollen, müssen diese Anweisungen serialisiert werden. Führen innerhalb eines jeden \Glspl{Warp} die \Glspl{Thread} paarweise unterschiedliche Instruktionen aus, so verliert man den Faktor 32 in der \Gls{Performance}. Diese sogenannte Divergenz kann nach jeder if-Anweisung auftreten und sollte so schnell wie möglich durch Synchronisierung aufgelöst werden. 
+		
+		
+		\section{Datentypen}
+		Auf GPUs existiert ein zwei-byte Datentyp mit halber Präzision. Benutzt man die in CUDA eingebauten arithmetischen Funktionen, kann man die Performance dadurch weiter verbessern.			
+		\begin{lstlisting}[caption=~Half Precision]
+		#include<cuda_fp16.h>
+		#include "fp16_conversion.h"
+		
+		__global__
+		void haxpy(int n, half a, const half *x, half *y)
+		{
+    		int start = threadIdx.x + blockDim.x * blockIdx.x;
+    		int stride = blockDim.x;
+
+			int n2 = n/2;
+			half2 *x2 = (half2*)x, *y2 = (half2*)y;
+
+			for (int i = start; i < n2; i+= stride) 
+					y2[i] = __hfma2(__halves2half2(a, a), x2[i], y2[i]);
+
+			if (start == 0 && (n%2))
+					y[n-1] = __hfma(a, x[n-1], y[n-1]);
+		}
+		\end{lstlisting}
+		
+	    Die benutzten Funktionen verlangen den Datentyp \li`half2`, also eine Kombination von zwei \li`half` Werten.
+	    
+		Eingebaute Funktionen wären z.B. \li`__hdiv`, \li`__hadd` oder \li`__hmul`. Eine Auflistung aller Funktionen befindet sich in Kapitel 1.1 der Dokumentation der CUDA Math \Gls{API}. \autocite{cudaMath}
+		
+		Der Header \textit{cuda\_ fp16.h} befindet sich im üblichen include-Ordner. \textit{fp16\_ conversion.h} benötigt man jedoch aus dem github: \url{https://github.com/NVIDIA-developer-blog/code-samples/blob/master/posts/mixed-precision/fp16_conversion.h}
+		
+		Diese Datei enthält Konvertierungsfunktionen für \li`float` nach \li`half`.
+	
+		
+		\section{Atomic Operations und Reduktionen}
+		Eine Reduktion ist eine Operation, die die Dimensionalität eines Objekts verringert. Üblicherweise sind damit Operationen gemeint, die ein Array beliebiger Größe auf ein einfaches Skalar verringern. Beispiele dafür sind die Maximumsreduktion (also das Auffinden des größten Wertes), die Minimumsreduktion, die Summenreduktion (also die Summe aller Elemente) oder das Produkt aller Elemente. 
+		
+		Dies impliziert, dass viele \Glspl{Thread} gleichzeitig den selben Wert aktualisieren müssen, z.B. beim Addieren einer Zahl zu einem globalen Zähler. An dieser Stelle tritt ein sogenanntes Datarace auf: Ein \Gls{Thread} liest einen Wert aus dem Speicher, addiert und legt die Variable wieder im Speicher ab und überschreibt damit einen Wert der währenddessen von anderen \Glspl{Thread} bereits bearbeitet wurde bzw. bearbeitet wird. Um diese Zugriffe zu serialisieren, stellt CUDA sogenannte Atomic Operations zur Verfügung, also Operationen, die garantiert seriell ablaufen. Beispielsweise \li`int atomicAdd(int* address, int val)` addiert auf eine Variable bei der Speicheradresse \li`address` den Wert \li`val`. Eine Liste befindet sich im Anhang B.12 des CUDA Programming Guides. \autocite{cudaPG}
+		
+		Diese Form der Implementierung ist sehr langsam und eher zum Debuggen gedacht. Eine parallele Methode ist erforderlich. Im Prinzip nimmt zu Beginn jeder \Gls{Thread} zwei Werte und führt die Operation aus. Der nächste \Gls{Thread} nimmt abermals zwei Werte ohne Überlapp zum Vorherigen. Nach einem Schritt hat sich die Anzahl der zu reduzierenden Elemente halbiert. Im nächsten Schritt wird mit der halben Zahl der \Glspl{Thread} abermals halbiert, bis die Reduktion bereit steht.
+		
+		Im Folgenden wird eine naive Implementierung mit einfachen Mitteln optimiert.
+		
+		--SIEHE reduction.cu--
+		
+		Verschiedene HPC Librarys bieten Implementierungen der gängigsten Reduktionen an, z.B. THRUST oder MAGMA. 
+		
+		
+		\section{NVCC}
+		Der Nvidia CUDA Compiler (\gls{nvcc}) wird benutzt um sowohl Host- als auch Devicecode zu kompilieren. Es handelt sich dabei um eine Obermenge des g++. Es lässt sich bis zum C++14 Standard alles in C oder C++ kompilieren. Soll explizit CUDA Code kompiliert werden, so muss die Quelldatei die Dateiendung \li`.cu` tragen. Andernfalls wird der Code als gewöhnliches C++ kompiliert und der Compiler liefert Fehler, sobald er auf Devicecode oder auf einen Aufruf der Runtime Library stößt.
+		
+		Der Compiler wird wie gewohnt gestartet:
+		
+		\li`nvcc <name>.cu`
+		
+		Der Compiler kompiliert nun getrennt Hostcode wie gewohnt mittels gcc/g++ (clang unter MacOS), Devicecode aber in eine assemblerartige Sprache namens \textit{Nvidia Parallel Thread Execution} (\Gls{NVPTX}). Aus dieser kann Maschinencode erstellt werden, der für die GPU lesbar ist. Im Handbuch des nvcc \autocite{cudaNVCC} findet sich eine Liste der Compilerflags. Diese sind in den wesentlichen Punkten kompatibel zu g++ mit Ausahme einiger spezieller Modi für Devicecode.
+		
+		Die wichtigste Ausnahme ist: \li`-arch=compute_35 -code=compute_35`
+		
+		Dieses lässt den Code explizit für eine \gls{compute capability} kompilieren, in diesem Fall 3.5. Damit lassen sich Features dieser \gls{compute capability} aktivieren. Allerdings ist der code auf älteren Karten dann nicht mehr ausführbar (falls modernere Features verwendet wurden). "Arch" (Architecture) bezeichnet dabei das Chipdesign, "Code" die Software.
+		
+		Mit \li`-c` lassen sich wie gewohnt Objektdateien (\li`.o`) und damit statische und dynamische Librarys erstellen.
+		
+		Der Compiler inkludiert automatisch einige Header z.B. cuda.h oder math.h, sowohl für Host- als auch für Devicecode und linkt selbstständig mit den richtigen Bibliotheken. Für weitere Bibliotheken können selbstverständlich die Compilerflags \li`-I` und -\li`-L` sowie der Linker, z.B. für \li`-lgomp` benutzt werden.
+		
+		Das Verhalten des Compilers kann über verschiedene Umgebungsvariablen gesteuert werden. Eine Liste befindet sich im Anhang J des CUDA Programming Guides. \autocite{cudaPG} 

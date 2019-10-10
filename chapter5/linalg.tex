@@ -1,0 +1,314 @@
+	\section{Lineare Algebra}
+		\subsection{cuBLAS und clBLAS}
+		Um für Programmierer das Implementieren von Algorithmen in der linearen Algebra zu erleichtern, wurden in den 70er Jahren in Fortran verschiedenen Matrix- und Vektoroperationen hardwarenah implementiert. Diese Bibliothek ist als \textit{Basic Linear Algebra Subprograms} (BLAS) bekannt. Es exisiteren Wrapper und Portierungen für verschiedene Sprachen.
+	
+		BLAS besteht aus drei Teilen:
+		\begin{itemize}
+			\item \textbf{Level 1: Vektor-Vektor Operationen}\\
+			Normen, Skalarprodukte, Dotprodukte, Kreuzprodukte, ...
+			\item \textbf{Level 2: Matrix-Vektor Operationen}\\ Multiplikationen von Vektoren und Matrizen unter Nebenbedingungen (z.B. symmetrische Matrix, ...)
+			\item \textbf{Level 3: Matrix-Matrix Operationen}\\Matrixnormen, Matrixadditionen, Matrixmultiplikationen unter Nebenbedingungen, ...
+		\end{itemize}
+		
+		Es existiert eine Implementierung von Nvidia in CUDA namens cuBLAS. In dieser Bibliothek, die Teil des CUDA Toolkits ist, werden diese Operationen auf der GPU parallelisiert. Zur Benutzung muss der Header \textit{cublas{\_}v2.h} (in älteren Versionen \textit{cublas.h}) inkludiert und mit \textit{libcublas} gelinkt werden.
+		
+		Die Handhabung soll möglichst einfach gehalten werden. Der Anwender implementiert Vektoren als gewöhnliche Arrays und linearisierte Matrizen ebenfalls als Array. Für komplexe Zahlen existiert das Datenformat \li`cuComplex`, welches analog zu \li`cufftComplex` funktioniert. In cuBLAS geht man von column-major Format und 1-based indexing aus. Dabei wird eine Matrix spaltenweise nacheinander in einem Array abgelegt. Dann ist für ein Element einer Matrix $A(i,j)$ (wobei $i$ und $j$ mit 1 beginnen) der Index im Array \li`A[(j-1)*m + i-1]`, wobei $m$ die Anzahl an Reihen einer Matrix ist. 
+		\begin{lstlisting}[caption=cuBLAS: Matrix setzen]
+		#define IDX2F(i,j,ld) ((((j)-1)*(ld))+((i)-1))
+		
+		uint M = ...;
+		uint N = ...;	
+
+		float* a = (float *)malloc (M * N * sizeof(float));
+		for (uint j = 1; j <= N; j++) 
+		{
+			for (uint i = 1; i <= M; i++) a[IDX2F(i,j,M)] = ...;
+		}
+		float *b = ...;
+		float *c = ...;
+
+		float* devPtrA;
+		cudaMalloc(&devPtrA, M*N*sizeof(float));
+
+		float* devPtrA;
+		float* devPtrB;
+		float* devPtrC;
+		cublasSetMatrix(M, N, sizeof(float), a, M, devPtrA, M);
+		...
+		\end{lstlisting}
+		
+		Sobald die Objekte gesetzt wurden, wird ähnlich wie in cuFFT ein \Gls{Handle} erstellt. Dann können auf diesen Objekten bestimmte Operationen ausgeführt werden, deren Namen und Handhabung in Kapitel 2.4 der cuBLAS Dokumentation \autocite{cublasDoc} nachgeschlagen werden können. Typischerweise existieren Funktionen in mehreren Versionen für verschiedenen Präzisionen. Nach Ausführung kann das Objekt zur Ausgabe in den CPU Speicher zurückkopiert werden. Typischerweise implementieren diese Funktionen eine Abfolge von mehreren Operationen, die auf eine spezielle Operation angepasst werden muss.
+		
+		Man betrachte die Berechnung einer Matrixmultiplikation $C = A\cdot B$ einer $m\times n$ Matrix $A$ und einer $n\times m$ Matrix $B$ im allgemeinen Fall für einfache Präzision. Dazu existiert die Funktion \li`cublasSgemm`. Diese implementiert die Abbildung $C \leftarrow \alpha\cdot\textbf{op}(A)\textbf{op}(B) + \beta\cdot C$, wobei op() für transponieren oder konjugieren stehen kann und $\alpha$ bzw. $\beta$ beliebige Skalare sind. Für op() existiert der Datentyp \li`cublasOperation_t` und kann entweder \li`CUBLAS_OP_N` ("normal"), \li`CUBLAS_OP_T` ("transponiert") oder \li`CUBLAS_OP_C` ("komplex konjugiert") sein. In diesem Beispiel muss also die Funktion wie folgt gerufen werden: 
+		\begin{lstlisting}[caption=cuBLAS: Funktionsaufruf]
+		cublasHandle_t handle;
+		cublasCreate(&handle);
+		
+		cublasSgemm(handle, 
+			CUBLAS_OP_N , CUBLAS_OP_N, M, M, N, 
+			1.0, devPtrA, M, devPtrB, N, 
+			0.0, devPtrC, M);
+		
+		cublasGetMatrix(M, M, sizeof(float), devPtrC, M, c, M);
+		
+		cudaFree(devPtrA); cudaFree(devPtrB); cudaFree(devPtrC);			
+		free(a); free(b); free(c);
+		
+		cublasDestroy(handle);
+		\end{lstlisting}
+		
+		Dazu muss eine $m\times m$ Matrix $C$ mit null vorbelegt werden. Die Größen von $A$ und $B$ müssen richtig angegeben und mit der Operation \li`CUBLAS_OP_N` versehen werden. Skalar $\alpha$ wird auf eins, $\beta$ auf null gesetzt. 
+		
+		In älteren Versionen sind Wrapper für die Allozierungsfunktionen vorhanden. Diese gelten als veraltet und sollten nicht mehr verwendet werden.
+		
+		Es existiert eine von AMD entwickelte Portierung clBLAS für OpenCL. Wie gewohnt ist diese Bibliothek quelloffen und kann unter \url{https://github.com/clMathLibraries/clBLAS} heruntergeladen werden. Eine Dokumentation steht ebenfalls zur Verfügung \autocite{clblasDoc}. Nach Installation muss der Header \textit{clblas.h} inkludiert und mit \textit{libclBLAS} (und wie gewohnt mit \textit{libOpenCL}) gelinkt werden.
+
+		Zur Benutzung muss eine Initialisierungsfunktion gerufen werden. Matritzen werden ebenfalls im column-major Format in einen Buffer geschrieben. Da sich clBLAS ebenfalls an BLAS orientiert, unterscheiden sich die Namen der Funktionen gegenüber cuBLAS nur im Präfix "cl". Nach Ausführen dieser Funktion muss synchronisiert und das Ergebnis zurückkopiert werden.\\ \\
+		\begin{lstlisting}[caption=clBLAS Beispiel]
+		cl_int err;
+		cl_uint M = ...;
+		cl_uint N = ...;
+		
+		cl_float *A = ...; 
+		cl_float *B = ...; 
+		cl_float *C = ...;
+		
+		clblasSetup();
+		
+		cl_mem bufA = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  
+			M*N * sizeof(cl_float), NULL, &err); 
+		cl_mem bufB = ...; 
+		cl_mem bufC = ...;
+
+		clEnqueueWriteBuffer(queue, bufA, CL_TRUE, 0, 
+			M*N * sizeof(cl_float), A, 0, NULL, NULL);       
+		 
+		cl_event event;
+		clblasSgemm(clblasColumnMajor, clblasNoTrans, clblasNoTrans, M, M, N,
+			1.0, bufA, 0, M, bufB, 0, N, 
+			0.0, bufC, 0, M,
+			1, &queue, 0, NULL, &event);
+		clWaitForEvents(1, &event);
+
+		clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, 
+			M*M * sizeof(cl_float), C, 0, NULL, NULL);
+
+		clReleaseMemObject(bufC);clReleaseMemObject(bufB);clReleaseMemObject(bufA);
+		clblasTeardown();
+		\end{lstlisting}
+		
+		Einziger Unterschied zu cuBLAS ist die Angabe von OpenCl-spezifischen Eigenheiten, wie z.B. die Angabe eines Offsets oder	
+der Events.
+		
+		\subsection{cuSPARSE und clSPARSE}
+		In vielen Fällen der Praxis handelt es sich bei Matrizen um sogenannte dünn besetzte Matrizen (engl. \textit{sparse matrices}). Das Prinzip eines sparse-Formates beruht darauf, die wesentliche Anzahl von Nullen in der Matrix nicht zu speichern. Man speichert lediglich die von null verschiedenen Werte und deren Indizes in der Matrix. Bei einer Bandmatrix z.B. steigt die Zahl dieser Elemente linear mit $n$, die Zahl der Nullen aber quadratisch. Daher ist in den meisten Fällen ein solches Format bereits wegen dem geringeren Speicherbedarf sinnvoll. 
+		
+		Eine Multiplikation mit Null ergibt immer Null und muss nicht explizit ausgeführt werden. Um die Performance zu steigern, müssen folglich Algorithmen verwendet werden, die dieses Format explizit unterstützen. Für CUDA existiert die Bibliothek cuSPARSE. Das Inkludieren und Linken erfolgt wie gewohnt (\textit{cusparse.h}, \textit{libcusparse}).
+		
+		\subsection{cuSOLVER}
+		Es exisitiert eine Reihe von Bibliotheken, die aufbauend auf BLAS die wichtigsten Algorithmen der linearen Algebra implementieren, z.B. QR-Zerlegung oder Eigenwertberechnung. Die bekannteste ist das Linear Algebra Package (LAPACK), das in Fortran77 geschrieben wurde (umgeschrieben auf Fortran90) und für die meisten Programmiersprachen portiert wurde. Es existieren hierfür auch \Glspl{API}, z.B. Armadillo oder JLapack.
+		Um für dicht und dünn besetzte Matrizen schnelle Methoden für Berechnungen in der linearen Algebra bereit zu stellen, existiert eine Implementierung der wichtigsten Algorithmen in der Bibliothek cuSOLVER, ein Teil des CUDA Toolkits. Linken und Inkludieren erfolgt wie gewohnt (\textit{cusolver.h}, \textit{libcusolver}). Diese Bibliothek orientiert sich an LAPACK und besteht aus drei Teilen:
+		\begin{itemize}
+		\item \textbf{cuSolverDN: Dense LAPACK} 
+		
+		Methoden zur Lösung eines regulären dicht besetzten Gleichungssystems $Ax = b$ (QR- und LU-Zerlegung mit Pivotisierung, Cholesky Zerlegung für symmetrisch/hermitesche Matrizen, Bunch-Kaufmann-Zerlegung für symmetrisch indefinite Matrizen, Singulärwertzerlegung).
+		
+		\item \textbf{cuSolverSP: Sparse LAPACK}
+		
+		Methoden zur Lösung eines dünn besetzten Gleichungssystems $Ax = b$, im überbestimmten Fall durch Regression $x = argmin||Az-b||$, im unterbestimmten Fall durch Lösen von $A^Tx=b$. Für symmetriche Matrizen muss eine volle Matrix angegeben werden (Ausnahme: Bei Cholesky-Zerlegung reicht die untere linke Dreiecksmatrix.) Zusätzlich existiert eine Eigenwertzerlegung auf Basis der shift-inverse-power Methode.
+		
+		\item \textbf{cuSolverRF: Refactorization}
+		
+		Methoden zur schnellen Lösung einer Menge von Gleichungssystemen $A_i x_i = b_i$. Bleibt das sparsity-pattern der Matrizen $A_i$, sowie das Neuordnen zur Pivotisierung und zum Auffüllen während der LU-Zerlegung gleich, ist dieser Teil der Bibliothek anwendbar. Zuerst wird für $i=1$ eine volle LU-Zerlegung durchgeführt. Für die folgenden kann ein LU-Refaktorisierungsalgorithmus verwendet werden.	
+		\end{itemize}
+		
+		Im Folgenden soll die Lösung eines regulären linearen Gleichungssystems $A_{m\times m}x=B$ mittels LU-Zerlegung ermittelt werden.
+		\begin{lstlisting}[caption=cuSOLVER: Buffer]
+		const int m = ...; const int lda = m; const int ldb = m;
+		float A[lda*m] = {...};
+		float B[m] = {...};    
+
+		cusolverDnHandle_t cusolverH; cusolverDnCreate(&cusolverH);
+		cudaStream_t stream;
+		cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+		cusolverDnSetStream(cusolverH, stream);
+
+		float *d_A; cudaMalloc(&d_A, sizeof(float)*lda*m);
+		float *d_B; cudaMalloc(&d_B, sizeof(float)*m);
+
+		cudaMemcpy(d_A, A, lda*m*sizeof(float), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_B, B,     m*sizeof(float), cudaMemcpyHostToDevice);
+
+		int lwork; float *d_work; 
+		cusolverDnDgetrf_bufferSize(cusolverH, m, m, d_A, lda, &lwork);
+		cudaMalloc(&d_work, sizeof(float)*lwork);
+		\end{lstlisting}
+		
+		Für die Nutzung der Funktionen muss ein \Gls{Handle} erzeugt und einem \Gls{Stream} hinzugefügt werden. Belegen der Matrizen erfolgt wie gewohnt linearisiert. Allerdings muss danach mit \li`cusolverDnDgetrf_bufferSize` die Größe eines Buffers, der für die Zerlegung notwendig ist, ermittelt werden. Mit dieser Angabe wird dann der Buffer explizit angelegt.
+		\begin{lstlisting}[caption=cuSOLVER: LU-Zerlegung]
+		int Ipiv[m];      
+		int info; 
+		int *d_Ipiv; cudaMalloc(&d_Ipiv, m*sizeof(int));
+		int *d_info; cudaMalloc(&d_info,   sizeof(int));
+		
+		const int pivot_on = 1;
+		if(pivot_on) 
+			cusolverDnDgetrf(cusolverH, m, m, d_A, lda, 
+			d_work, d_Ipiv, d_info);
+		else          
+			cusolverDnDgetrf(cusolverH, m, m, d_A, lda, 
+			d_work, NULL,   d_info);
+			
+		cudaDeviceSynchronize();
+
+		float LU[lda*m];
+		if(pivot_on) 
+			cudaMemcpy(Ipiv, d_Ipiv, m*sizeof(int), cudaMemcpyDeviceToHost);
+		cudaMemcpy(LU, d_A, lda*m*sizeof(float), cudaMemcpyDeviceToHost);
+		cudaMemcpy(&info, d_info, sizeof(int), cudaMemcpyDeviceToHost);
+
+		if(0 > info)
+		{	
+			printf("%d-th parameter is wrong \n", -info);
+			exit(1);
+		}
+		\end{lstlisting}
+		
+		Nun kann explizit eine LU-Zerlegung $A = LU$ mittels \li`cusolverDnDgetrf` durchgeführt werden. Dies funktioniert optional mit einer Pivotisierung $PA = LU$ (Permutationsmatrix $P$), bei der zusätzlich das Pivot Element jeder Zeile gespeichert wird. Bei dem speziellen Info "Array" \li`d_info` handelt es sich um einen einzigen globalen integer-Wert, der mit negativem Vorzeichen angibt, welcher Parameter bei der Berechnung fehlerhaft war. Bei einer fehlerfreien Berechnung ist dieser Wert mit null belegt. Die Ausgabe der fertige Zerlegung wird als $(L-1)+U$ in einer Matrix gespeichert.
+		
+		\begin{lstlisting}[caption=cuSOLVER: Gleichungssystem lösen]
+		if(pivot_on) 
+			cusolverDnDgetrs(cusolverH, CUBLAS_OP_N, m, 1, d_A, lda, 
+			d_Ipiv, d_B, ldb, d_info);
+		else         
+			cusolverDnDgetrs(cusolverH, CUBLAS_OP_N, m, 1, d_A, lda, 
+			NULL,   d_B, ldb, d_info);
+			
+		cudaDeviceSynchronize();
+
+
+
+		float X[m];
+		cudaMemcpy(X, d_B, m*sizeof(float), cudaMemcpyDeviceToHost);
+
+		cudaFree(d_A); cudaFree(d_B); cudaFree(d_Ipiv);
+		cudaFree(d_info); cudaFree(d_work);
+
+		cusolverDnDestroy(cusolverH);
+		cudaStreamDestroy(stream);
+		\end{lstlisting}
+		
+		Der Aufruf führt \li`cusolverDnDgetrs` (wahlweise mit Pivotisierung) eine Vor- und Rückwärtssubstitution aus und berechnet so die Lösung des Gleichungssystems ($Ly = B$, $Ux = y$). Das Ergebnis steht in \li`d_B` bereit.
+		
+		\subsection{MAGMA}
+		Die zunehmende Notwendigkeit, Algorithmen auf heterogenen Systemen zu parallelisieren, motivierte die Entwicklung der Matrix Algebra on GPU and Multicore Architectures (MAGMA). MAGMA orientiert sich in der Funktionsweise an BLAS bzw. LAPACK und soll effiziente Algorithmen implementieren, die die Hardware eines heterogenen Systems (gleichzeitig Vielkernprozessor und verschiedene GPUs) vollständig ausreizt. Bei Installation wird Existenz und Version von CUDA und OpenMP abgefragt. Dann wird die Bibliothek für alle relevanten Architekturen und Konfigurationen kompiliert. Linken erfolgt dann gegen \textit{libmagma} oder \textit{libmagma{\_}sparse} und gegen die entsprechenden Abhängigkeiten (\textit{liblapack}, \textit{libcuBLAS}, ...). Inkludiert wird \textit{magma{\_}v2.h} für die BLAS- und \textit{magma{\_}lapack.h} für die LAPACK-Portierung.
+
+		Es existieren zwei Interfaces. Falls keine Grafikkarte zur Verfügung steht, kann das CPU-Interface benutzt werden. In diesem Fall wird ein OpenMP parallelisierter Algorithmus verwendet. Andernfalls kann mittels GPU-Interface ein mit CUDA beschleunigter Hybridalgorithmus verwendet werden. Sollte trotz vorhandener GPU (und GPU-Installation) das CPU-Interface benutzt werden, wird dennoch ein Hybridalgorithmus verwendet.
+		
+		Im Folgenden soll die LU-Zerlegung in cuSOLVER mit MAGMA durchgeführt werden.
+		\begin{lstlisting}[caption=MAGMA: CPU-Interface]
+		magma_init();
+		magma_queue_t queue;
+		magma_int_t  dev = 0;
+		magma_queue_create(dev, &queue);
+  
+		magma_int_t m = ...; magma_int_t n = 1;
+                      
+		float *a; magma_smalloc_pinned(&a, m*m);   
+		float *b; magma_smalloc_pinned(&b, m);  
+		float *x; magma_smalloc_pinned(&x, m);   
+		magma_int_t *piv = (magma_int_t *)malloc(m*sizeof(magma_int_t));
+		
+		//Belegen...
+
+		const float alpha = 1.0f;
+		const float beta  = 0.0f;
+		blasf77_sgemm("N", "N", &m, &n, &n, &alpha, a, &m, x, &m, &beta, b, &m);
+
+		magma_int_t info;
+		magma_sgesv(m, n, a, m, piv, b, m, &info);
+
+		magma_free_pinned(a); magma_free_pinned(b); magma_free_pinned(x); free(piv);
+
+		magma_queue_destroy(queue);
+		magma_finalize();
+		\end{lstlisting}
+		
+		Zunächst wird MAGMA initialisiert. Danach wird ein Device ausgewählt und einer Command Queue hinzugefügt. Bei der Verwendung des CPU Interfaces für einen GPU Algorithmus wird managed Memory verwendet. Daher muss für die Arrays pinned Memory (page-locked) alloziert werden. Danach erfolgt ein Aufruf einer Matrixmultiplikation analog zu cuBLAS (\li`blasf77_sgemm`), um die Lösung später überprüfen zu können. Die Zerlegung selbst erfolgt dann analog zu cuSOLVER mittels \li`magma_sgesv`.	
+		\begin{lstlisting}[caption=MAGMA: GPU-Interface]
+		magma_init();
+		magma_queue_t queue;
+		magma_int_t  dev = 0;
+		magma_queue_create(dev, &queue);
+  
+		magma_int_t m = ...; magma_int_t n = 1;
+                      
+		float *a; magma_smalloc_cpu(&a, m*m);   
+		float *b; magma_smalloc_cpu(&b, m);  
+		float *x; magma_smalloc_cpu(&x, m);   
+		magma_int_t *piv = (magma_int_t *)malloc(m*sizeof(magma_int_t));
+		
+		//Belegen...
+
+		const float alpha = 1.0f;
+		const float beta  = 0.0f;
+		blasf77_sgemm("N", "N", &m, &n, &n, &alpha, a, &m, x, &m, &beta, b, &m);
+
+
+
+		////////////////////////////////////////////
+		float *d_a; magma_smalloc(&d_a, m*m);
+		float *d_b; magma_smalloc(&d_b, m);		
+		magma_ssetmatrix(m, m, a, m, d_a, m, queue);
+		magma_ssetmatrix(m, n, b, m, d_b ,m, queue);
+		////////////////////////////////////////////
+
+		magma_int_t info;
+		magma_sgesv_gpu(m, n, d_a, m, piv, d_b, m, &info);
+		
+		////////////////////////////////////////////
+		magma_sgetmatrix(m, n, d_b, m, x, m, queue);
+		magma_free(d_a); magma_free(d_b);
+		////////////////////////////////////////////
+		
+		free(a); free(b); free(x); free(piv);
+		
+		magma_queue_destroy(queue);
+		magma_finalize();
+		\end{lstlisting}
+		
+		Das GPU Interface funktioniert ähnlich. CPU Speicher kann nun gewöhnlich mit \li`magma_smalloc_cpu` alloziert werden. GPU Speicher wird mit \li`magma_smalloc` erzeugt und mit \li`magma_ssetmatrix` bzw. \li`magma_sgetmatrix` kopiert. Der Aufruf der LU-Zerlegung ist beinahe \li`magma_sgesv_gpu` identisch. CPU Speicher wird normal mit \li`free`, GPU Speicher mit \li`magma_free` freigegeben.	
+		
+		\subsection{Iterative Verfahren}
+		Bei den Verfahren aus BLAS und LAPACK handelt es sich um direkte Lösungsverfahren. Diese liefern im Erfolgsfall (bis auf numerische Ungenauigkeiten) die analytische Lösung. Bei den sogenannten iterativen Verfahren handelt es sich um numerische Lösungen ähnlicher Probleme, deren Genauigkeit aber durch die Abbruchbedingung der Iteration gesteuert werden kann. Man opfert also Genauigkeit zu Gunsten von Performance. 
+		
+			\subsubsection{Paralution}
+			Paralution ist eine sehr umfangreiche C++-Bibliothek für indirekte (sparse) Lösungsverfahren von Differentialgleichungen oder Problemen der linearen Algebra. Im folgenden Beispiel soll die zweidimensionale stationäre Wärmeleitungsgleichung $\Laplace x = b$ auf einem diskretisierten $100\times 100$ Gitter gelöst werden.
+			\begin{lstlisting}[caption=Paralution Beispiel]		
+			paralution::init_paralution();
+			paralution::info_paralution();
+
+			paralution::LocalVector<float> x;
+			paralution::LocalVector<float> rhs;
+
+			paralution::LocalStencil<float> stencil(Laplace2D);
+			stencil.SetGrid(100);
+
+			x.Allocate("x", stencil.get_nrow()); x.Zeros();
+			rhs.Allocate("rhs", stencil.get_nrow()); rhs.Ones();
+
+			paralution::CG<LocalStencil<float>, LocalVector<float>, double> ls;
+			ls.SetOperator(stencil);
+			ls.Build();
+			stencil.info();
+
+			ls.Solve(rhs, &x);
+
+			paralution::stop_paralution();
+			\end{lstlisting}
+			
+			Die Daten werden hier mit Konstruktoraufrufen von C++ Vektoren erzeugt. Deren Inhalte werden durch explizite Aufrufe von Member Funktionen gesetzt. Dann wird ein sogenannter Stencil als numerische Näherung für den 2d-Laplace Operator erzeugt. Das Gitter, auf welches dieser Stencil angewendet werden soll, wird auf 100 ($100\times 100$) gesetzt. Damit wird ein linear Solver (ls) erzeugt (\li`ls.Build()`). Mit diesem kann die Differentialgleichung nun gelöst werden (\li`ls.Solve(rhs, &x)`). An Stelle eines Laplace Operators lässt sich genauso eine Matrix verwenden, um beispielsweise eine Zerlegung auszuführen. Mit der Initialisierunsfunktion \li`init_paralution` können mehrere Parameter, wie z.B. die Abbruchbedingung der Iteration eingestellt werden. Dies kann im äußerst ausführlichen Handbuch nachgeschlagen werden. \autocite{para}
+			 
+			\subsubsection{AMGX}	
+			Bei AmgX handelt es sich um eine ähnliche Bibliothek. Die Stärken liegen hierbei u.A. bei Krylov-Subspace Methoden. AmgX ist ein offizielles Partnerprojekt von Nvidia und kann unter \url{https://github.com/NVIDIA/AMGX} heruntergeladen werden. Zusätzliche Python Bindings sind unter \url{https://github.com/shwina/pyamgx} verfügbar. Das Handbuch enthält mehr Informationen über die Nutzung. \autocite{amgx}	
+			
