@@ -1,0 +1,269 @@
+\documentclass[a4paper,headsepline=3pt,headinclude=true,12pt,oneside]{scrbook}
+\usepackage[left=2cm,right=2cm,top=1cm,bottom=3cm,includeheadfoot]{geometry}
+\usepackage{scrlayer-scrpage}
+\usepackage{mwe}
+\usepackage[origlayout=true,automark,colors={ph}]{URpagestyles}
+\usepackage{lipsum} %fuer Fuelltexte
+
+\usepackage{iftex}%automatische Auswahl des richtigen Fontloaders und der Eingabekodierung
+%Es liefert das Makro \ifPDFTeX. Die Abfragen können entfernt werden, wenn nur eine bestimmte Variante verwendet wird.
+\ifPDFTeX%falls mit pdfLaTeX kompiliert wird
+	\usepackage[utf8]{inputenc}
+	\usepackage[T1]{fontenc}
+	\usepackage[ngerman]{babel} 
+	%\usepackage[english]{babel} %Sparache aendern
+\else%falls mit Lua oder XeLaTeX kompiliert wird
+	\usepackage{fontspec}
+	\usepackage{polyglossia}
+	\setmainlanguage{german} 
+	%\setmainlanguage{english} %Sprache aendern 
+\fi
+\usepackage{lmodern} %moderne Schriftarten
+\usepackage{csquotes}
+\usepackage{titletoc} %partielles Inhaltsverzeichnis
+
+%alles mit Tabellen
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{csvsimple}
+\usepackage{multirow}
+\usepackage{makecell}
+
+%\usepackage[dvipsnames]{xcolor} %Farben, optionen fuer mehr Voreinstellungen
+%aufpassen beim Drucken, Drucker sind fast alle schlecht kalibriert, erst eine Testseite drucken
+
+\usepackage{xspace} %Abstaende
+\usepackage{setspace} %Zeilenabstand
+
+%alles mit Bildern
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{sidecap}
+\usepackage{wrapfig}
+\usepackage{pdfpages}
+
+%alles mit Mathematik
+\DeclareMathSizes{18}{18}{18}{18}
+\usepackage{upgreek}
+\usepackage{paralist}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amscd}
+\usepackage[output-decimal-marker={,}]{siunitx}
+\usepackage{thmtools}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.16}
+
+%code texen
+\usepackage{listings}
+\lstset{ %Beispielkonfiguration fuer C-code
+  backgroundcolor=\color{lightgray!50!white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}; should come as last argument
+  basicstyle=\footnotesize,        % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{orange},     % comment style
+  deletekeywords={sizeof},         % if you want to delete keywords from the given language
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  firstnumber=1,                   % start line enumeration with line 1000
+  frame=single,                    % adds a frame around the code
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  %keywordstyle=\color{red!50!black},% keyword style
+  keywordstyle=\color{blue},% keyword style
+  language=C++,                    % the language of the code
+  morekeywords={__constant__, __shared__, __device__, __host__, __global__, __managed__, float2, float3, float4, dim3, int2, int3, int4, uint, half, cudaStream_t, cudaEvent_t, cudaError_t, cudnnError_t, cusparseError_t, cublasError_t, curandError_t, cufftError_t, cusolverError_t, __kernel, kernel, __constant, constant, __local, local, __private, private, __global, global, cl_device_id, cl_platform_id, cl_int, cl_uint, cl_float, cl_double, string, cl_mem, cl_kernel, size_t, cl_event, cl_program, cl_context, cl_command_queue, FILE, restrict, event_t, ptrdiff_t , intptr_t, uintptr_t, device_ptr, device_vector, host_vector, vector, Platform, Context, CommandQueue, Buffer, Program, Kernel, Sources, Device, cl_context_properties, cufftHandle, cufftComplex, cufftReal, cufftDouble, cufftDoubleComplex, clfftSetupData, clfftDim, fftw_complex, fftw_plan, curandStateSobol32_t, curandStateScrambledSobol32_t, curandStateSobol64_t, curandStateScrambledSobol64_t, curandState (XORWOW), curandStatePhilox4_32_10_t, curandStateMRG32k3a, curandStateMtgp32_t, curandGenerator_t, curandState, clrngMrg31k3pHostStream, clrngMrg31k3pStream, clprobdistExponential, clqmcLatticeRule, clqmcLatticeRuleStream, cublasHandle_t, cublasOperation_t, cusolverDnHandle_t, cusolverSpHandle_t, cusolverRfHandle_t, magma_queue_t, magma_int_t, LocalVector, CG, LocalStencil, __attribute__, aligned_allocator, auto, tensorflow, trt, tf, keras, Mat, cudnnHandle_t, cudnnTensorDescriptor_t, cudnnFilterDescriptor_t, cudnnConvolutionDescriptor_t, cudnnConvolutionFwdAlgo_t},% if you want to add more keywords to the set
+  numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+  numbersep=5pt,                   % how far the line-numbers are from the code
+  numberstyle=\small\color{black}, % the style that is used for the line-numbers
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  stepnumber=2,                    % the step between two line-numbers. If it's 1, each line will be numbered
+  stringstyle=\color{green!50!black}, % string literal style
+  identifierstyle=\color{black},
+  tabsize=2,	                   % sets default tabsize to 2 spaces
+  title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
+}
+\expandafter\ifx\csname li\endcsname\relax
+\let\li=\lstinline
+\else\errmessage{li schon definiert \meaning\li}%
+\fi
+
+%Literaturverzeichnis
+\usepackage[backend=biber, citestyle=numeric, bibstyle=numeric]{biblatex}
+\addbibresource{/home/kat10110/script/lit.bib} %richtigen Pfad ersetzen
+
+%Index
+\usepackage{makeidx}
+\makeindex
+
+\setlength{\parindent}{0pt} %keine Absatzeinzüge
+\setlength{\parskip}{\baselineskip}
+
+%Links
+\usepackage[colorlinks=true,
+            linkcolor=black,
+            urlcolor=gray,
+            citecolor=gray,
+            bookmarks=true]{hyperref}
+\usepackage{tabularx} %Tabellencounter, nach hyperref
+\usepackage[toc,nopostdot]{glossaries} %Glossar, nach hyperref
+\makeglossaries
+\input{glossary.tex} %Glossardefinitionen einfuegen, richtigen Pfad ersetzen
+
+\DeclareCaptionFont{black}{\color{black}}
+\DeclareCaptionFormat{listing}{
+  \colorbox[rgb]{1,1,1}{
+    \parbox{\textwidth}{\hspace{15pt}#1#2#3}
+  }
+}
+\captionsetup[lstlisting]{format=listing, labelfont=black, textfont=black, singlelinecheck=false, margin=0pt, font={bf,footnotesize}}
+
+\renewcommand*{\familydefault}{\sfdefault}
+\newcommand*{\pck}[1]{\texttt{#1}}
+\newcommand*{\code}[1]{\texttt{#1}}
+\newcommand*{\repl}[1]{\textrm{\textit{#1}}}
+\newcommand{\cmd}[1]{\par\medskip\noindent\fbox{\ttfamily#1}\par\medskip\noindent}
+\setcounter{secnumdepth}{\sectionnumdepth}
+\newsavebox{\remarkbox}
+\sbox{\remarkbox}{\emph{Anmerkung:~}}
+\newcounter{iterator}
+\usepackage{colortbl}
+
+%meta Informationen
+\author{Thomas Karl}
+\title{Wissenschaftliches Rechnen auf Grafikkarten}
+\subtitle{Universit\"at Regensburg}
+\date{\today}
+\renewcommand{\titlepagestyle}{URtitle} 
+\renewcommand{\lstlistingname}{Codebeispiel}
+\renewcommand{\thechapter}{\Roman{chapter}}
+\renewcommand{\thesection}{\thechapter~\arabic{section}}
+
+\cfoot*{ }
+\ofoot*{\thepage}% the pagenumber in the center of the foot, also on plain pages
+\ihead*{ }% Name and title beneath each other in the inner part of the foot
+\ohead*{\headmark}
+\automark[subsection]{section}
+
+\newcommand*\Laplace{\mathop{}\!\mathbin\bigtriangleup}
+
+\begin{document}
+\begin{onehalfspacing}
+	\pagenumbering{Roman} %Die ersten Seiten roemisch nummeriert	
+
+	%\maketitle
+	
+	\includepdf{titlepage.pdf}	
+	\newpage
+	
+	\tableofcontents
+	\newpage
+	
+	\listoffigures
+	\addcontentsline{toc}{chapter}{\listfigurename}
+	\newpage
+	
+	\listoftables
+	\addcontentsline{toc}{chapter}{\listtablename}
+	\newpage
+    
+	\renewcommand{\lstlistlistingname}{Liste der Codebeispiele} %Listenname umbenennen
+    \lstlistoflistings
+    \addcontentsline{toc}{chapter}{\lstlistlistingname}
+    \newpage
+    
+    \printglossaries %Glossar automatisch im Inhaltsverzeichnis
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%% eigentlicher Inhalt %%%%%%%%%%%%%%%%%%%%%% 
+	\pagenumbering{arabic} %ab jetzt arabisch nummeriert
+	\setcounter{page}{1} %beginnend mit eins, pdf-reader einstellen mit bookmarks=true in den Optionen von hyperref
+
+    \startcontents[Einführung in High-Performance-Computing]
+    \printcontents[Einführung in High-Performance-Computing]{l}{1}{\chapter*{Einführung in High-Performance-Computing}\setcounter{tocdepth}{2}}
+    \input{/home/kat10110/script/chapter1/chapter1.tex}		
+    \stopcontents[Einführung in High-Performance-Computing]
+    
+    \startcontents[Hardwaregrundlagen]
+    \printcontents[Hardwaregrundlagen]{l}{1}{\chapter*{Hardwaregrundlagen}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter2/chapter2.tex}
+	\stopcontents[Hardwaregrundlagen]
+	
+	\startcontents[Einführung in Nvidia CUDA]
+    \printcontents[Einführung in Nvidia CUDA]{l}{1}{\chapter*{Einführung in Nvidia CUDA}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter3/chapter3.tex}
+	\stopcontents[Einführung in Nvidia CUDA]
+		
+	\startcontents[Einführung in OpenCL]
+    \printcontents[Einführung in OpenCL]{l}{1}{\chapter*{Einführung in OpenCL}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter4/chapter4.tex}
+	\stopcontents[Einführung in OpenCL]
+	
+	\startcontents[HPC Librarys]
+    \printcontents[HPC Librarys]{l}{1}{\chapter*{HPC Librarys}\setcounter{tocdepth}{1}}
+    \input{/home/kat10110/script/chapter5/chapter5.tex}
+    \stopcontents[HPC Librarys]
+    
+   	\startcontents[OpenACC v.s. OpenMP]
+    \printcontents[OpenACC v.s. OpenMP]{l}{1}{\chapter*{OpenACC v.s. OpenMP}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter6/chapter6.tex}
+	\stopcontents[OpenACC v.s. OpenMP]
+	 
+  	\startcontents[OpenCL auf FPGAs]
+    \printcontents[OpenCL auf FPGAs]{l}{1}{\chapter*{OpenCL auf FPGAs}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter7/chapter7.tex}
+	\stopcontents[OpenCL auf FPGAs]  
+	
+    \appendix
+    
+    \chapter{Cluster Computing mit NCCL}
+    \url{https://docs.nvidia.com/deeplearning/sdk/nccl-install-guide/index.html}
+    
+    \chapter{nvGRAPH}
+    \url{https://docs.nvidia.com/cuda/nvgraph/index.html}
+    
+	\chapter{Nvidia Jetson}
+		\section{Produkte}
+		\url{https://www.nvidia.com/de-de/autonomous-machines/embedded-systems/}
+		\section{Jetpack}
+		\url{https://developer.nvidia.com/embedded/jetpack}
+		\section{Isaac SDK}
+		\url{https://docs.nvidia.com/isaac/isaac/doc/index.html}
+		
+	\chapter{Grafik-Rendering}
+		\section{OpenGL}
+		\url{http://www.opengl-tutorial.org/}	
+		\section{Vulkan}
+		\url{https://vulkan-tutorial.com/}	
+		\section{OpenCL Schnittstelle}	
+		\href{https://software.intel.com/en-us/articles/opencl-and-opengl-interoperability-tutorial}{https://software.intel.com/en-us/articles/ \\ opencl-and-opengl-interoperability-tutorial}	
+		\section{CUDA Schnittstelle}
+		\url{https://www.3dgep.com/opengl-interoperability-with-cuda/}	
+		
+	\chapter{SPIR-V}
+	\url{https://www.khronos.org/spir/}
+	
+	\chapter{Bildbearbeitung mit OpenCV}
+	\url{https://docs.opencv.org/master/d9/df8/tutorial_root.html}
+	
+	\chapter{DirectCompute}
+	\url{https://www.nvidia.de/object/directcompute_de.html}
+	
+	\chapter{PhysX: Physik Engine f\"ur Videospiele}
+	\url{https://gameworksdocs.nvidia.com/PhysX/4.1/documentation/physxguide/Index.html} \\
+	\url{https://gameworksdocs.nvidia.com/PhysX/4.1/documentation/physxapi/files/index.html}
+
+	
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\printbibliography
+	\addcontentsline{toc}{chapter}{\bibname}
+
+\end{onehalfspacing}	
+\end{document}

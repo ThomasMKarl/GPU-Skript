@@ -1,0 +1,273 @@
+\newglossaryentry{API}
+{
+	name=API,
+	description={application programming interface, Programmierschnittstelle.},
+	plural=APIs
+}
+
+\newglossaryentry{Arbeit}
+{
+	name=Arbeit,
+	description={typischerweise eine Zahl von Flops, ein Maß für die Lesitung, die ein Programm erbringen muss.},
+	plural=Arbeiten
+}
+
+\newglossaryentry{arithmetische Intensität}
+{
+	name=arithmetische Intensität,
+	description={Verhältnis von Arbeit zum Datenverkehr.},
+	plural=arithmetische Intensitäten
+}
+
+\newglossaryentry{Block}
+{
+	name=Block,
+	description={ein evtl. mehrdimensionaler Verbund von Threads in Software (CUDA). Jeder Block besteht aus der gleichen Anzahl an Threads.},
+	plural=Blöcke
+}
+
+\newglossaryentry{compute capability}
+{
+	name=compute capability,
+	description={eine Versionsnummer der Chiparchitektur, die u.A. bestimmt, welche Features von CUDA auf der GPU implementiert wurden.},
+	plural=compute capabilitys
+}
+
+\newglossaryentry{Command Queue}
+{
+	name=Command Queue,
+	description={eine Menge von Instruktionen, die der Reihe nach abgehandelt werden sollen (OpenCL).},
+	plural=Command Queues
+}
+
+\newglossaryentry{constant Memory}
+{
+	name=constant Memory,
+	description={siehe erstes Vorkommen},
+	plural=constant Memorys
+}
+
+\newglossaryentry{Datenverkehr}
+{
+	name=Datenverkehr,
+	description={eine Zahl an Bytes, die während des Ausführens eines Programms insgesamt transferriert wird.}
+}
+
+\newglossaryentry{Gang}
+{
+	name=Gang,
+	description={ein evtl. mehrdimensionaler Verbund von Vectors in Software (OpenACC). Jede Gang besteht aus der gleichen Anzahl an Vectors.},
+	plural=Gangs
+}
+
+\newglossaryentry{global Memory}
+{
+	name=global Memory,
+	description={siehe erstes Vorkommen},
+	plural=global Memorys
+}
+
+\newglossaryentry{Grid}
+{
+	name=Grid,
+	description={die Gesamtheit aller Blöcke (Nvidia).},
+	plural=Grids
+}
+
+\newglossaryentry{Halfwarp}
+{
+	name=Halfwarp,
+	description={ein Verbund von 16 Threads in Hardware (Nvidia, CUDA Terminologie).},
+	plural=Halfwarps
+}
+
+\newglossaryentry{Handle}
+{
+	name=Handle,
+	description={ein eindeutiger Referenzwert zu einer vom Betriebssystem verwalteten Systemressource.},
+	plural=Handles
+}
+
+\newglossaryentry{Kernel}
+{
+	name=Kernel,
+	description={eine kleine Recheneinheit, die auf die GPU ausgelagert werden soll.},
+	plural=Kernel
+}
+
+\newglossaryentry{Kontext}
+{
+	name=Kontext,
+	description={ein Handle für das OpenCL Programm (Speicherobjekte, Programs, Command Queues, ...).},
+	plural=Kontexte
+}
+
+\newglossaryentry{local Memory}
+{
+	name=local Memory,
+	description={Speicher (cached) eines einzelnen Threads (CUDA). \\ ein kleiner, sehr schneller Speicher, den sich alle Workitems einer Workgroup teilen (OpenCL). Pro SM wird einer verbaut (Nvidia).},
+	plural=local Memorys
+}
+
+\newglossaryentry{MTIU}
+{
+	name=MTIU,
+	description={Multi Threaded Instruction Unit, ein kleiner Controller, der Instruktionen an die Warps ausgibt.},
+	plural=MTIUs
+}
+
+\newglossaryentry{nvcc}
+{
+	name=nvcc,
+	description={Nvidia C(++) Compiler}
+}
+
+\newglossaryentry{nvlink}
+{
+	name=nvlink,
+	description={eine High-Speed Datenschnittstelle für Nvidia Grafikkarten in Clustern.}
+}
+
+\newglossaryentry{NVPTX}
+{
+	name=NVPTX,
+	description={Nvidia Parallel Thread Execution, eine assemblerartige Sprache, in die nvcc Devicecode übersetzt.}
+}
+
+\newglossaryentry{page-locked Memory}
+{
+	name=page-locked Memory,
+	description={allozierter Speicher, der nicht vom Betriebssystem verschoben werden darf.}
+}
+
+\newglossaryentry{parallele Effizienz}
+{
+	name=parallele Effizienz,
+	description={Verhältnis von Speedup zur Anzahl der eingesetzten Prozessoren.},
+	plural=parallele Effizienzen
+}
+
+\newglossaryentry{PCIe}
+{
+	name=PCIe,
+	description={Peripheral Component Interconnect Express, die standard-Schnittstelle für Steckkarten.}
+}
+
+\newglossaryentry{Peak Bandwidth}
+{
+	name=Peak Bandwidth,
+	description={maximale interne Speicherbandbreite.},
+	plural=Peak Bandwidth
+}
+
+\newglossaryentry{Peak Performance}
+{
+	name=Peak Performance,
+	description={maximale Performance eines Prozessors.},
+	plural=Peak Performances
+}
+
+\newglossaryentry{Performance}
+{
+	name=Performance,
+	description={das Verhältnis von Flops zur benötigten Rechenzeit, ein Maß für die Effizienz von Soft- und Hardware.},
+	plural=Performances
+}
+
+\newglossaryentry{Platform}
+{
+	name=Platform,
+	description={eine OpenCL Imolementierung in Software.},
+	plural=Platformen
+}
+
+\newglossaryentry{private Memory}
+{
+	name=private Memory,
+	description={Speicher (cached) eines einzelnen Workitems (OpenCL).},
+	plural=private Memorys
+}
+
+\newglossaryentry{shared Memory}
+{
+	name=shared Memory,
+	description={siehe erstes Vorkommen},
+	plural=shared Memorys
+}
+
+\newglossaryentry{SM}
+{
+	name=SM,
+	description={Streaming Multiprocessor, Eine Recheneinheit bestehend aus mehreren Warps, einer MTIU und shared memory.},
+	plural=SMs
+}
+
+\newglossaryentry{Speedup}
+{
+	name=Speedup,
+	description={Faktor, um den ein paralleles Programm schneller läuft, als die sequentielle Variante.},
+	plural=Speedups
+}
+
+\newglossaryentry{Stream}
+{
+	name=Stream,
+	description={eine Menge von Instruktionen, die der Reihe nach abgehandelt werden sollen (CUDA).},
+	plural=Streams
+}
+
+\newglossaryentry{texture Memory}
+{
+	name=Texture Memory,
+	description={siehe erstes Vorkommen},
+	plural=Texture Memorys
+}
+
+\newglossaryentry{Thread}
+{
+	name=Thread,
+	description={die kleinste Recheneinheit einer GPU in CUDA, in Hardware auf Nvidia GPUs auch CUDA Core genannt.},
+	plural=Threads
+}
+
+\newglossaryentry{Vector}
+{
+	name=Vector,
+	description={die kleinste Recheneinheit einer GPU in OpenACC.},
+	plural=Vectors
+}
+
+\newglossaryentry{Warp}
+{
+	name=Warp,
+	description={Kombination zweier Halfwarps.},
+	plural=Warps
+}
+
+\newglossaryentry{Wavefront}
+{
+	name=Wavefront,
+	description={ein Verbund von 32 oder 64 Workitems in Hardware (AMD).},
+	plural=Wavefronts
+}
+
+\newglossaryentry{Worker}
+{
+	name=Wavefront,
+	description={ein Verbund von 32 Vectors in Hardware (Nvidia, OpenACC Terminologie).},
+	plural=Workers
+}
+
+\newglossaryentry{Workgroup}
+{
+	name=Workgroup,
+	description={ein evtl. mehrdimensionaler Verbund von Workitems in Software (OpenCL). Jede Workgroup besteht aus der gleichen Anzahl an Workitems.},
+	plural=Workgroups
+}
+
+\newglossaryentry{Workitem}
+{
+	name=Workitem,
+	description={die kleinste Recheneinheit einer GPU in OpenCL.},
+	plural=Workitems
+}
