@@ -112,7 +112,8 @@
 			
 			Im Folgenden werden nur die OpenCL eigenen Datentypen verwendet (siehe \ref{makros}).					
 			\subsection{Devices}
-			Jede \Gls{Platform} stellt OpenCL für ein oder auch mehrere Geräte zur Verfügung. Im nächsten Schritt müssen also die entsprechenden Devices den gefundenen \Glspl{Platform} zugeordnet werden.		\begin{lstlisting}[caption=~Deviceabfrage]
+			Jede \Gls{Platform} stellt OpenCL für ein oder auch mehrere Geräte zur Verfügung. Im nächsten Schritt müssen also die entsprechenden Devices den gefundenen \Glspl{Platform} zugeordnet werden.		
+			\begin{lstlisting}[caption=~Deviceabfrage]
 			cl_device_id device_id = NULL;	
 			clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_DEFAULT, 1, 
 				&device_id, &ret_num_devices);
@@ -284,6 +285,7 @@
 			
 		clFlush(command_queue);
 		clFinish(command_queue);
+		
 		clReleaseKernel(kernel_vecadd);
 		clReleaseProgram(program);
   
@@ -296,10 +298,10 @@
 
 		free(...);
 		\end{lstlisting}
-		Das letzte Argument von \li`clEnqueueNDRangeKernel`, \li`clEnqueueReadBuffer` und \li`clEnqueueWriteBuffer` enthält eine Referenz auf ein Event. Das Event hat stattgefunden, sobald die Funktion ausgeführt wurde. Das vorletzte Argument enthält eine Liste von Events. Das drittletzte Argument gibt an, auf wie viele dieser Events gewartet werden muss, bis die Funktion ausgeführt werden soll. Jeder \Gls{API} Aufruf erfolgt also grundsätzlich asynchron.
+		Das letzte Argument von \li`clEnqueueNDRangeKernel`, \li`clEnqueueReadBuffer` und \li`clEnqueueWriteBuffer` enthält eine Referenz auf ein Event. Das Event hat stattgefunden, sobald die Funktion ausgeführt wurde. Das vorletzte Argument enthält eine Liste von Events. Das drittletzte Argument gibt an, auf wie viele dieser Events gewartet werden muss, bis die Funktion ausgeführt werden soll. Jeder \Gls{API} Aufruf erfolgt also grundsätzlich asynchron. \li`clFinish` bildet eine Barriere für die CPU bis die entsprechende \Gls{Command Queue} ausgeführt wurde. Für Thread-paralleles Programmieren der CPU existiert der Befehl \li`clFlush`, der eine Barriere bildet, bis eine bestimmte \Gls{Command Queue} aufgebaut wurde.
 			
 		\section{Datentypen und Makros}\label{makros}
-		Die OpenCL \Gls{API} definiert sich einige Datentypen um plattformunabhängigkeit zu gewährleisten. Beispielsweise garantiert \li`cl_int`, dass es sich dabei unabhängig von Compiler und Betriebssystem um eine 32bit Ganzzahl handelt.
+		Die OpenCL \Gls{API} definiert sich einige Datentypen um Plattformunabhängigkeit zu gewährleisten. Beispielsweise garantiert \li`cl_int`, dass es sich dabei unabhängig von Compiler und Betriebssystem um eine 32bit Ganzzahl handelt.
 		
 		\textbf{Datentypen:}		
 		
@@ -313,7 +315,6 @@
 		
 		Alle Präprozessordirektiven von C99 werden unterstützt. Einige weitere wurden zusätzlich definiert:\\ \url{https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/preprocessorDirectives.html}		
 		
-		%\section{Pipes}
 		\section{Images}
 		Das Image Format ist eine Datenstruktur, die speziell auf Bilformate optimiert wurde.
 		\begin{lstlisting}
@@ -415,14 +416,14 @@
 		template<typename T, size_t Rows, size_t Columns>
 		class matrix 
 		{
-			public:
+		   public:
 			matrix(){}
 			T& operator()(size_t row, size_t col) {return _data[row-1][col-1];}
 
 			constexpr size_t num_rows(){return Rows;}
 			constexpr size_t num_columns(){return Columns;}
 			
-			private:
+		   private:
 			T _data[Rows][Columns];
 		};
 		\end{lstlisting}

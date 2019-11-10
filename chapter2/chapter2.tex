@@ -3,6 +3,7 @@
 		Aus Wikipedia \autocite{wikiFT}:
 		
 		Die Flynn’sche Taxonomie wurde 1966 von Michael J. Flynn publiziert und beschreibt eine grobe Unterteilung von Rechnerarchitekturen basierend auf der Anzahl der Befehls- (instruction streams) und Datenströme (data streams). Die Klassifikation teilt im Wesentlichen vier Bereiche ein:
+		
 		\begin{itemize}
 		\item \textbf{Single Instruction, Single Data (SISD)}\\ Unter SISD-Rechnern versteht man traditionelle Einkernprozessor-Rechner, die ihre Aufgaben sequentiell abarbeiten. SISD-Rechner sind z. B. Personal-Computer (PCs) oder Workstations, welche nach der Von-Neumann- oder der Harvard-Architektur aufgebaut sind. Bei ersterer wird für Befehle und Daten die gleiche Speicheranbindung verwendet, bei letzterer sind sie getrennt. 
 		
@@ -33,6 +34,7 @@ Ein Beispiel in diesem Falle wäre das UNIX-Kommando make. Hier können auch mit
         
         \section{Aufbau einer Grafikkarte}
         Auch wenn das Moor'sche Gesetz noch ansatzweise erfüllt ist, stagniert die Leistung von einzelnen Prozessoren seit Jahren (Abb. \ref{2:hard}). Folglich versucht man viele Prozessoren zu einem großen Verbund zusammen zu schalten.
+        
         \begin{figure}[h]
 			\centering
     		\includegraphics[height=0.6\textwidth]{/home/kat10110/script/chapter2/pictures/perf.png}
@@ -44,13 +46,13 @@ Ein Beispiel in diesem Falle wäre das UNIX-Kommando make. Hier können auch mit
 		\begin{itemize}
 			\item \textbf{Bus Interface}: steuert den Datenfluss von der \Gls{PCIe}-Schnittstelle, Instruktionen werden an die GPU weitergeleitet, Speicherallozierungen an den Speichercontroller
 			\item \textbf{Speichercontroller}: ein kleiner Mikroprozessor, der Speicher alloziert
-			\item \textbf{Speicher}: beinhaltet den globalen und Texturspeicher. Die interne Speicherbandbreite liegt heutzutage bei bis zu 800GB/s.
+			\item \textbf{Speicher}: beinhaltet den globalen und Texturspeicher. Die interne Speicherbandbreite liegt heutzutage bei bis zu 1TB/s (HBM2).
 			\item \textbf{GPU}: das Herzstück der Grafikkarte. Ursprünglich war die einzige Aufgabe, der CPU 3d-Berechnungen für Texturen abzunehmen. Es existieren Grafikkarten mit zwei GPUs.
-			\item \textbf{Video-Out-Controller}: wandelt die Berechnungen der GPU in Signale für die Videoausgänge um. Ein DAC Wandler wird nur für den VGA-Ausgang benötigt und existiert auf modernen GPUs nicht mehr. 			
+			\item \textbf{Video-Out-Controller}: wandelt die Berechnungen der GPU in Signale für die Videoausgänge um. Ein DAC Wandler wird nur für den VGA-Ausgang benötigt und existiert auf modernen Karten nicht mehr. 			
 		\end{itemize}
 		Auf jeder GPU sitzt ein passiv-Kühler sowie ein seperater Lüfter. Abbildung \ref{2:gpucpu} zeigt eine Grafikkarte verbaut in einem gewöhnlichen Desktop-Computer. 
 		
-		Datenverkehr zwischen CPU und GPU erfolgt normalerweise über \Gls{PCIe}x16 mit einer maximalen Bandbreite von 32GB/s. Sehr hochwertige Karten sind über \gls{nvlink} miteinander verbunden bei einer \Gls{Peak Bandwidth} von 300GB/s, was immer noch weit unter der internen Speicherbandbreite liegt. Kopieranweisungen zwischen CPU und GPU sollte also auf das Minimum reduziert werden.
+		Datenverkehr zwischen CPU und GPU erfolgt meistens über \Gls{PCIe}x16 mit einer maximalen physikalischen Bandbreite von 32GB/s (25GB/s ohne Overhead). Sehr hochwertige Karten sind über \gls{nvlink} miteinander verbunden bei einer \Gls{Peak Bandwidth} von 300GB/s, was immer noch weit unter der internen Speicherbandbreite liegt. Kopieranweisungen zwischen CPU und GPU sollte also auf das Minimum reduziert werden.
 		
 		\begin{figure}[h]
 			\centering
@@ -61,15 +63,16 @@ Ein Beispiel in diesem Falle wäre das UNIX-Kommando make. Hier können auch mit
 		
 		Nvidia bietet im Wesentlichen drei Produktlinien an:
 		\begin{itemize}
-		\item \textbf{GeForce}: Gaming-Grafikkarten. Berechnungen für Gaming beschränken sich meist auf das Berechnen von Texturen und Ausgabe auf dem Bildschirm. Daher sind diese Karten nicht mit einem Rechenwerk für doppelte Präzision ausgestattet und verlieren einen erheblichen Faktor bei der Performance, sollte man 64Bit Arithmetik anwenden.
-		\item \textbf{Quadro}: Ausgestattet für HPC. Diese verlieren nur den Faktor zwei bei doppelter Präzision. Verwendet werden diese für CAD (Differentialgleichungen lösen und grafisch Anzeigen für Belastungsanalysen) oder grafische Simulationen.
+		\item \textbf{GeForce}: Gaming-Grafikkarten. Berechnungen für Gaming beschränken sich meist auf das Berechnen von Texturen und Ausgabe auf dem Bildschirm. Daher sind diese Karten nicht mit einem Rechenwerk für doppelte Präzision ausgestattet und verlieren einen erheblichen Faktor bei der Performance ($\approx 32$), sollte man 64Bit Arithmetik anwenden.
 		
-		\item \textbf{Tesla} wie Quadro, aber ohne Video-Controller. Diese sind im Wesentlichen für Deep-Learning Techniken gedacht. Moderne GPUs beinhalten sogenannte Tensorkerne, spezielle Threads, die für deep-convolutional neural networks optimiert sind. Diese kommen nun vermehrt in Gaming-Karten als Unterstützung für Ray-Tracing Kerne zum Einsatz.
+		\item \textbf{Quadro}: Ausgestattet für HPC. Diese verlieren nur den Faktor zwei bei doppelter Präzision. Verwendet werden diese für CAD (Differentialgleichungen lösen und grafisch anzeigen für Belastungsanalysen) oder grafische Simulationen.
+		
+		\item \textbf{Tesla} wie Quadro, aber ohne Video-Controller. Diese sind im Wesentlichen für Deep-Learning Techniken gedacht. Moderne GPUs beinhalten sogenannte Tensorkerne, die für deep-convolutional neural networks optimiert sind. Diese kommen nun vermehrt in Gaming-Karten als Unterstützung für Ray-Tracing Kerne zum Einsatz.
 		\end{itemize}		 		
 		
         Karten aller drei Linien werden nach ihrer Chiparchitektur klassifiziert. Von der ältesten zur modernsten heißen diese: Tesla (nicht verwechseln!), Fermi, Maxwell, Kepler, Pascal, Volta (Weiterentwicklung: Turing)
         
-        Zudem existieren Unterkategorien, die in der sogenannten \textit{\gls{compute capability}} zum Ausdruck kommen. Diese ist die wesentlichste Kenngröße einer Grafikkarte, da sie bestimmt, welche Features von CUDA in Hardware auf der GPU implementiert sind.		
+        Zudem existieren Unterkategorien, die in der sogenannten \textit{\gls{compute capability}} zum Ausdruck kommen. Diese ist die wesentlichste Kenngröße einer Nvidia Grafikkarte, da sie bestimmt, welche Features von CUDA in Hardware auf der GPU implementiert sind.		
 		
         \begin{figure}[h]
 			\centering
@@ -94,12 +97,13 @@ Ein Beispiel in diesem Falle wäre das UNIX-Kommando make. Hier können auch mit
 		\end{figure}
 		
 		Eine GPU wird aufgeteilt in eine bestimmte Anzahl von sogenannten Streaming Multiprocessors (\Gls{SM}). Üblich ist eine geringe zweistellige Anzahl (Abb. \ref{2:gpu}). Diese bestehen wiederum aus den folgenden Komponenten:
+		
 		\begin{itemize}
 		\item Multiple Threaded Instruction Unit (\Gls{MTIU}): veteilt die Instruktionen auf einen \Gls{Thread} pro \Gls{Warp}
 		\item \Glspl{Warp}: ein Verbund von 32 \Glspl{Thread}. Eine Instruktion wird kopiert und an alle weitergegeben.
 		\item \Gls{Halfwarp}: Genau eine Hälfte eines \glspl{Warp}
 		\item Special Function Unit (SFU): Erledigt besondere Aufgaben, z.B. shader Berechnungen (später mehr) 
-		\item \Gls{shared Memory}: ein kleiner, extrem schneller Speicher, den sich alle \Glspl{Thread} einer \Gls{SM} teilen.
+		\item \Gls{shared Memory}: ein kleiner, extrem schneller Speicher, den sich alle \Glspl{Thread} eines \Gls{SM}s teilen.
 		\end{itemize}
 
 		Es ist wichtig, die technischen Details der Hardware zu kennen, um die Software darauf anzupassen. Ein HPC Programm ist üblicherweise genau auf die Hardware zugeschnitten, auf der das Programm laufen soll. Die Generalisierung eines Problems ist nicht trivial und manchmal sogar unmöglich oder nur unter starken \Gls{Performance}verlusten zu erreichen.	

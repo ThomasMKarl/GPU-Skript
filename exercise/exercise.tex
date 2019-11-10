@@ -68,21 +68,21 @@
   escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
   extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
   firstnumber=1,                   % start line enumeration with line 1000
-  frame=single,	                   	% adds a frame around the code
+  frame=single,	                   % adds a frame around the code
   keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
   keywordstyle=\color{blue},       % keyword style
   language=C++,                    % the language of the code
   morekeywords={*,...},            % if you want to add more keywords to the set
   numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
   numbersep=5pt,                   % how far the line-numbers are from the code
-  numberstyle=\tiny\color{gray}, 	% the style that is used for the line-numbers
+  numberstyle=\tiny\color{gray},   % the style that is used for the line-numbers
   rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
   showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
   showstringspaces=false,          % underline spaces within strings only
   showtabs=false,                  % show tabs within strings adding particular underscores
   stepnumber=2,                    % the step between two line-numbers. If it's 1, each line will be numbered
   stringstyle=\color{orange},      % string literal style
-  tabsize=2,	                   	% sets default tabsize to 2 spaces
+  tabsize=2,	                   % sets default tabsize to 2 spaces
   title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
 }
 \expandafter\ifx\csname li\endcsname\relax
@@ -130,18 +130,30 @@
 \begin{document}
 	\maketitle
 	
+	\section{Bandbreitentest}
+	Kopieren Sie ein einzelnes Array der Größe $n$ in Bytes in den globalen Speicher. Messen Sie die Zeit $t$. Plotten Sie für verschiedene $n$ die Zeiten und fitten sie linear die Funktion $t(n) = \frac1bn+l$ an. Dabei ist $b$ die Bandbreite von PCIe (unidirektional) und $l$ die Latenz.
+	
 	\section{Axpy}
 	Parallelisieren Sie für zwei Vektoren $\vec{x}$ und $\vec{y}$ die Zuweisung
 	\begin{equation}
-	\vec{y} \leftarrow a\cdot\vec{x} + \vec{y} 
+		\vec{y} \leftarrow a\cdot\vec{x} + \vec{y} 
 	\end{equation}
 	auf der Grafikkarte. Schreiben Sie drei verschiedene Kernel für single-, double- und half-precision. Variieren Sie die Dimension der Vektoren und protokollieren Sie die Laufzeit der drei Versionen. Bestimmen Sie durch lineares Fitten den Speedup von half- und float- gegenüber double-precision.
 	
-	\section{Matrixmultiplikation auf Cluster}
-	Parallelisieren Sie eine einfache Addition zweier großer $n\times n$ Matrizen $C = AB$ unter Verwendung mehrdimensionaler Blöcke. Benutzen Sie das Beispiel \textit{cluster.cu} um das Problem auf verschiedene GPUs aufzuteilen. Überprüfen Sie das Gesamtresultat.
+	\section{Matrixaddition auf Cluster}
+	Parallelisieren Sie eine einfache Addition zweier großer $n\times n$ Matrizen $C = A+B$ unter Verwendung mehrdimensionaler Blöcke. Benutzen Sie das Beispiel \textit{cluster.cu} um das Problem auf verschiedene GPUs aufzuteilen. Überprüfen Sie das Gesamtresultat.
 	
 	\section{Bubble Sort}
 	Implementieren Sie den \textit{Bubble Sort Algorithmus}\footnote{\url{https://de.wikipedia.org/wiki/Bubblesort}} sequentiell. Teilen Sie die innere Schleife auf: Die erste behandelt nur jedes zweite Element, die zweite die restlichen. Parallelisieren Sie diese nun unabhängigen Schleifen.
+	
+	\section{Concurrency}
+	Messen Sie die Bandbreite wie in Augabe 1 für den bidirektionalen Fall. Kopieren Sie ein Array der Größe $s$ auf die Grafikkarte. Benutzen Sie zwei asynchrone Kopierfunktionen um gleichzeitig dieses Array zu lesen und ein anderes der selben Größe zu schreiben. Dazu müssen diese Funktionen einem anderen Stream zugeordnet werden. Messen Sie die Zeit $t$ für beide Operationen und fitten Sie wie in Aufgabe 1 mit $n = 2s$.
+	
+	\section{Streams}
+	\subsection*{mehrere Additionen}
+	Führen Sie mehrere Vektoradditionen auf dem selben Device aus. Maximieren Sie den Durchsatz, indem Sie jede Addition einem anderen Stream zuordnen und damit Concurrency ausnutzen.
+	\subsection*{eine Addition}
+	Führen Sie eine Vektoradditionen auf dem selben Device aus. Maximieren Sie den Durchsatz, indem Sie die Arrays auf gleich große Subarrays aufteilen und jede Addition einem anderen Stream zuordnen. Führen Sie ihre Anwendung mit \textit{Nvidia nsight} aus und überprüfen Sie mit dem Profiler den Überlapp.
 	
 	\section{Reduktionen}
 	Schreiben Sie eine Reduktion in \textit{CUDA}. Nehmen Sie an, Sie haben ein sehr großes Array mit Werten und wollen beispielsweise die Summe aller Elemente parallel berechnen. Nehmen Sie an, dass die Größe $n$ des Arrays eine zweier-Potenz ist.
@@ -169,6 +181,7 @@
 			\includegraphics[scale=0.4]{2.png}		
 		\end{figure}
 		
+		\newpage
 		\subsection{Schritt 3}
 		Laden Sie die Daten in den shared Memory. Vermeiden Sie dabei Bankkonflikte. Jeder Thread muss Werte lesen, die möglichst weit auseinander liegen.
 		
@@ -236,7 +249,8 @@
 		
 	\section{THRUST}
 		\subsection*{Saxpy}
-		Schreiben Sie die \textit{Saxpy}-Operation mittels \textit{THRUST}-Funktoren, einmal mit Built-ins und einmal mit einem selbsgeschriebenen Funktor. Vergleichen Sie die Laufzeiten mit Aufgabe 1.
+		Schreiben Sie die \textit{Saxpy}-Operation mittels \textit{THRUST}-Funktoren, einmal mit Built-ins und einmal mit einem selbsgeschriebenen Funktor. Vergleichen Sie die Laufzeiten mit Aufgabe 2.
+		
 		\subsection*{Varianz}
 		Schreiben Sie einen Funktor zur Berechnung der Varianz eines Vektors.		
 		
@@ -269,15 +283,15 @@
 		\section{SPARSE}
 		Implementieren Sie folgende Matrix mit cuSPARSE/clSPARSE:
 		\begin{equation}
-		A = \frac1{h^2} 
-		\begin{pmatrix}
-			 2      & -1      &  0     &        & \cdots &  0      \\
-			-1      &  2      & -1     &  0     &        &  \vdots \\
-			 0      & -1      &  2     & -1     &  0     &         \\
-			        &  \ddots & \ddots & \ddots & \ddots &         \\
-			 \vdots &         &  0     & -1     &  2     & -1      \\
-			 0      & \cdots  &        &  0     & -1     &  2
-		\end{pmatrix}
+			A = \frac1{h^2} 
+			\begin{pmatrix}
+				 2      & -1      &  0     &        & \cdots &  0      \\
+				-1      &  2      & -1     &  0     &        &  \vdots \\
+				 0      & -1      &  2     & -1     &  0     &         \\
+			    	    &  \ddots & \ddots & \ddots & \ddots &         \\
+			 	 \vdots &         &  0     & -1     &  2     & -1      \\
+			 	0      & \cdots  &        &  0     & -1     &  2
+			\end{pmatrix}
 		\end{equation}
 		
 		Diese Matrix entspricht einem \textit{three-point-stencil} und nähert Gleichung \ref{diff}. Die Iteration \ref{tps} lässt sich auf den inneren Gitterpunkten schreiben als $\overline{u}_{t+\Delta t} = A\overline{u}_t$ mit $\overline{u}_t = (u(h,t), u(2h,t), ... u(L-h,T))^T$\footnote{Mehr Informationen unter \url{http://www.cfd.tu-berlin.de/Lehre/tfd_skript/node46.html}}. Vergleichen Sie die Lösung dieser direkten Methode mit ihrer selbstgeschriebenen Iteration oder mit Paralution. 
@@ -295,7 +309,7 @@
 		
 		\section{Projektideen}
 			\subsection{Velocity-Verlet Algorithmus}
-			Erweitern Sie Aufgabe 5 zum Velocity-Verlet Algorithmus. Berechnen Sie dazu explizit die Geschwindigkeiten $\vec{v}(t+\Delta t) = \vec{v}(t)+\frac{1}{2m}(\vec{f}(t)+\vec{f}(t+\Delta t))\Delta t$. Berechnen Sie in jedem Schritt die Gesamtenergie als Summe der kinetischen Energien $\frac12 m \vec{v}^2$ von jedem Teilchen. Plotten Sie diese gegen die Zeitschritte, um so die Energieerhaltung zu überprüfen und einen Langzeitdrift der Energie auszuschließen.
+			Erweitern Sie Aufgabe 8 zum Velocity-Verlet Algorithmus. Berechnen Sie dazu explizit die Geschwindigkeiten $\vec{v}(t+\Delta t) = \vec{v}(t)+\frac{1}{2m}(\vec{f}(t)+\vec{f}(t+\Delta t))\Delta t$. Berechnen Sie in jedem Schritt die Gesamtenergie als Summe der kinetischen Energien $\frac12 m \vec{v}^2$ von jedem Teilchen. Plotten Sie diese gegen die Zeitschritte, um so die Energieerhaltung zu überprüfen und einen Langzeitdrift der Energie auszuschließen.
 			
 			\subsection{Ransac Algorithmus}
 			Der Ransac-Algorithmus (\enquote{Random Sample Consensus}) ist ein simples Verfahren zum Fitten eines extrem verrauschten Signals. Simulieren Sie zunächst ein Signal von $s$ Messpunkten, welches einer linearen Funktion folgt. Legen Sie ein Rauschen über dieses Signal, indem Sie zusätzlich im entsprechenden Werte- und Definitionsbereich eine extrem hohe ($>>10^6$) Anzahl von uniform verteilten Punkten würfeln.
@@ -323,5 +337,6 @@
 			\subsection{Ising Modell}
 			\subsection{Replica Exchange}
 			\subsection{Nullstellen komplexer Polynome}
+			\subsection{Random Forest}
 		
 \end{document}
