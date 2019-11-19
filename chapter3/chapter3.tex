@@ -429,9 +429,9 @@
 			}
 		\end{lstlisting}
 
-		Die Idee dahinter ist, die CPU möglichst wenig zu blockieren (Asynchronizität) und möglichst viele \Gls{Kernel} gleichzeitig auszuführen (Concurrency). Allerdings bietet nicht jede GPU  Da ein normaler Kopierbefehl automatisch synchronisiert, muss die Kopie asynchron erfolgen (\li`cudaMemcpyAsync`). Mittels \li`cudaMallocHost` wird dafür sog. \gls{page-locked Memory} alloziert. Dieser Speicher darf vom Betriebssystem nicht verschoben werden und kann daher immer unter der selben Speicheradresse gefunden werden.
+		Die Idee dahinter ist, die CPU möglichst wenig zu blockieren (Asynchronizität, non-blocking) und möglichst viele \Gls{Kernel} gleichzeitig auszuführen (Concurrency, siehe \ref{async}). Da ein normaler Kopierbefehl automatisch synchronisiert, muss die Kopie asynchron erfolgen (\li`cudaMemcpyAsync`). Mittels \li`cudaMallocHost` wird dafür sog. \gls{page-locked Memory} alloziert. Dieser Speicher darf vom Betriebssystem nicht verschoben werden und kann daher immer unter der selben Speicheradresse gefunden werden. \Glspl{Kernel} werden automatisch non-blocking ausgeführt.
 		
-		Wird kein \Gls{Stream} angegeben, so wird der default-\Gls{Stream} verwendet. Für den default-Stream ist jede Form der Gleichzeitigkeit deaktiviert.
+		Wird kein \Gls{Stream} angegeben, so wird der default-\Gls{Stream} verwendet.
 		
 		Um die CPU auf einen bestimmten \Gls{Stream} warten zu lassen, kann \li`cudaStreamSynchronize` verwendet werden. \li`cudaStreamQuery` liefert genau dann einen Erfolg, wenn der \Gls{Stream} erfolgreich beendet worden.	
 		
@@ -441,11 +441,22 @@
 		
 		\li`if((cudaStreamQuery(stream[i]) == cudaSuccess) && (cudaEventQuery(stop) == cudaSuccess))...`
 		
-		mit denen man in Kombination mit der Device-Auswahl ganze Bäume von \Gls{Kernel}aufrufen erstellen kann. Auf Clustern kann man sich dies zu Nutze machen, um exakt den zeitlichen Ablauf von \Glspl{Kernel}s zu steuern.
+		mit denen man in Kombination mit der Device-Auswahl ganze Bäume von \Gls{Kernel}aufrufen erstellen kann. Auf Clustern kann man sich dies zu Nutze machen, um exakt den zeitlichen Ablauf von \Glspl{Kernel}s zu steuern. Anweisungen, die sich im selben \Gls{Stream} befinden, werden in Reihe abgearbeitet. Um dieses Verhalten zu verhindern, kann \li`cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking)` verwendet werden.
 		
 		\textcolor{red}{Wichtig:}
 		
 		Funktionen, die dem default-\Gls{Stream} zugeordnet werden, haben bezüglich Synchronizität auf der GPU ein anderes Verhalten. Es gilt, dass alle \Gls{API} Aufrufe und \Glspl{Kernel} in ihrer Reihenfolge auf dem Device abgehandelt werden. Für eigene \Glspl{Stream} ist dies nicht zwingend der Fall (siehe Abschnitt \ref{async}).
+		
+		\subsection{Concurrency}\label{async}
+		Moderne GPUs bieten die Möglichkeit gleichzeitiger \Gls{Kernel}aufrufe an. Werden Kopierbefehle und Kernelaufrufe verschiedenen \Glspl{Stream} zugeordnet, so können diese gleichzeitig auf dem Device ausgeführt werden. Dieses Verhalten kann jedoch nicht garantiert werden und kann daher nicht für Probleme verwendet werden, die zwingend Concurrency erfordern. Zudem gibt es für die Anzahl an gleichzeitig ausführbaren \Glspl{Kernel} eine Obergrenze, die bei jeder \Gls{compute capability} anders ist.
+		
+		Diese Möglichkeit bietet einige Vorteile:
+		\begin{itemize}
+		\item Probleme, die laut Amdahl kleiner Parllelität erfordern, können so in kleinerem Umfang ausgeführt werden, ohne Hardware Kapazitäten zu vergeuden, da sich mehrere von diesen Problemen gleichzeitig ausführen lassen.
+		\item PCIe ist \textit{full-duplex}. Es kann gleichzeitig gelesen und geschrieben werden. Dazu müssen sich aber beide Kopiervorgänge in verschiedenen Streams befinden. In diesem Fall erhält man fast die doppelte Bandbreite.
+		\item Wenn mehrere \Gls{Kernel} ausgeführ werden sollen, ihre Reihenfolge aber egal ist, kann so der GPU überlassen werden, welche Operationen wann ausgeführt werden.
+		\end{itemize}
+		
 		
 		\subsection{Synchronisation}\label{sync}
 		Explizite Synchronisierungsfunktionen:
@@ -489,6 +500,12 @@
 		\subsection*{\textcolor{red}{Divergenz}}
 		Synchronisation ist nich nur aufgrund von Abhängigkeiten in Algorithmen notwendig. \Glspl{Thread} innerhalb eines \Glspl{Warp} müssen zur selben Zeit die selben Instruktionen erhalten. Ist dies im Programm nicht der Fall, z.B. durch if-else Verzweigungen, müssen diese Anweisungen serialisiert werden. Führen innerhalb eines jeden \Glspl{Warp} die \Glspl{Thread} paarweise unterschiedliche Instruktionen aus, so verliert man den Faktor 32 in der \Gls{Performance}. Diese sogenannte Divergenz kann nach jeder if-Anweisung oder abgebrochener Schleife auftreten und sollte so schnell wie möglich durch Synchronisierung aufgelöst werden. 
 		
+		\section{gro\ss e Datenmengen}
+		Sollte die Date, die für eine bestimmte Rechnung nötig sind, zu groß für den \Gls{global Memory} der GPU, so muss das Problem in kleiner aufgeteilt werden. Bei der Vektoraddition ist dies kein Problem, da der Input in kleiner Teile geteilt und einzeln addiert werden kann. 
+		
+		Andere Probleme erfordern aber die kompletten Daten, zum Beispiel die Matrismultiplikation. Bei komplexeren Problemen wird es zur Hauptaufgabe des Programmierers, den Algorithmus so anzupassen, dass dieser aufgeteilt werden kann und die verschiedenen \Glspl{Kernel} miteinenader wechselwirken können. Ein einfaches Beispiel dafür wäre die Summenreduktion, bei der von Teilarrays die Summe gebildet wird, und diese Teilsummen dann wieder parallel aufsummiert werden (siehe Abschnitt \ref{red}). 
+		
+		Da nun für die Daten nur ein zu kleines Array bereitsteht, in das mmer wieder geschrieben werden muss, müssen die Anweisungen wieder in Reihe geschehen. Allerdings kann sich die Kopie zurück auf den Host und die folgende Kopie auf das Device immer noch überlappen. Folgendes Beispiel modifiziert jenes aus Abschnitt \ref{streams} so, dass alle Operationen auf Teilarrays in Order geschehen, die Kopieranweisungen aber überlappen. Dazu werden alle Operationen verschiedenen \Glspl{Stream} zugeordnet, aber explizite Synchronisierung verhindert eine verfrühte Addition oder Kopie.
 		
 		\section{Datentypen}
 		Auf GPUs existiert ein 16 Bit Datentyp mit halber Präzision. Benutzt man die in CUDA eingebauten arithmetischen Funktionen, kann man die Performance dadurch weiter verbessern.			
@@ -522,7 +539,7 @@
 		Diese Datei enthält Konvertierungsfunktionen für \li`float` nach \li`half`.
 	
 		
-		\section{Atomic Operations und Reduktionen}
+		\section{Atomic Operations und Reduktionen}\label{red}
 		Eine Reduktion ist eine Operation, die die Dimensionalität eines Objekts verringert. Üblicherweise sind damit Operationen gemeint, die ein Array beliebiger Größe auf ein einfaches Skalar verringern. Beispiele dafür sind die Maximumsreduktion (also das Auffinden des größten Wertes), die Minimumsreduktion, die Summenreduktion (also die Summe aller Elemente) oder das Produkt aller Elemente. 
 		
 		Dies impliziert, dass viele \Glspl{Thread} gleichzeitig den selben Wert aktualisieren müssen, z.B. beim Addieren einer Zahl zu einem globalen Zähler. An dieser Stelle tritt ein sogenanntes Datarace auf: Ein \Gls{Thread} liest einen Wert aus dem Speicher, addiert und legt die Variable wieder im Speicher ab und überschreibt damit einen Wert der währenddessen von anderen \Glspl{Thread} bereits bearbeitet wurde bzw. bearbeitet wird. Um diese Zugriffe zu serialisieren, stellt CUDA sogenannte Atomic Operations zur Verfügung, also Operationen, die garantiert seriell ablaufen. Beispielsweise \li`int atomicAdd(int* address, int val)` addiert auf eine Variable bei der Speicheradresse \li`address` den Wert \li`val`. Eine Liste befindet sich im Anhang B.12 des CUDA Programming Guides. \autocite{cudaPG}
@@ -535,28 +552,34 @@
 		
 		Verschiedene HPC Librarys bieten Implementierungen der gängigsten Reduktionen an, z.B. THRUST oder MAGMA. 
 		
+		\section{Dynamischer Parallelismus}\label{dyn}
 		
-		\section{NVCC}
-		Der Nvidia CUDA Compiler (\gls{nvcc}) wird benutzt um sowohl Host- als auch Devicecode zu kompilieren. Es handelt sich dabei um eine Obermenge des g++. Es lässt sich bis zum C++14 Standard alles in C oder C++ kompilieren. Soll explizit CUDA Code kompiliert werden, so muss die Quelldatei die Dateiendung \li`.cu` tragen. Andernfalls wird der Code als gewöhnliches C++ kompiliert und der Compiler liefert Fehler, sobald er auf Devicecode oder auf einen Aufruf der Runtime Library stößt.
+		\section{CUDA-Toolkit}
+			\section{Baumstruktur}
+			\subsection{NVCC}
+			Der Nvidia CUDA Compiler (\gls{nvcc}) wird benutzt um sowohl Host- als auch Devicecode zu kompilieren. Es handelt sich dabei um eine Obermenge des g++. Es lässt sich bis zum C++14 Standard alles in C oder C++ kompilieren. Soll explizit CUDA Code kompiliert werden, so muss die Quelldatei die Dateiendung \li`.cu` tragen. Andernfalls wird der Code als gewöhnliches C++ kompiliert und der Compiler liefert Fehler, sobald er auf Devicecode oder auf einen Aufruf der Runtime Library stößt.
 		
-		Der Compiler wird wie gewohnt gestartet:
+			Der Compiler wird wie gewohnt gestartet:
 		
-		\li`nvcc <name>.cu`
+			\li`nvcc <name>.cu`
 		
-		Der Compiler kompiliert nun getrennt Hostcode wie gewohnt mittels gcc/g++ (clang unter MacOS), Devicecode aber in eine assemblerartige Sprache namens \textit{Nvidia Parallel Thread Execution} (\Gls{NVPTX}). Aus dieser kann Maschinencode erstellt werden, der für die GPU lesbar ist. Im Handbuch des \gls{nvcc} \autocite{cudaNVCC} findet sich eine Liste der Compilerflags. Diese sind in den wesentlichen Punkten kompatibel zu g++ mit Ausahme einiger spezieller Modi für Devicecode.
+			Der Compiler kompiliert nun getrennt Hostcode wie gewohnt mittels gcc/g++ (clang unter MacOS), Devicecode aber in eine assemblerartige Sprache namens \textit{Nvidia Parallel Thread Execution} (\Gls{NVPTX}). Aus dieser kann Maschinencode erstellt werden, der für die GPU lesbar ist. Der Compiler erstell ein sogenanntes \textit{fatbinary}, kompiliert also Device- und Hostcode in die selbe ausführbare Datei. Um dies zu verhindern, kann die Option \li`-cubin` verwendet werden. Damit wird der Devicecode in ein eigenes Binary kompiliert, ein sogenanntes \textit{cubin}. Im Handbuch des \gls{nvcc} \autocite{cudaNVCC} befindet sich eine Liste der Compilerflags. Diese sind in den wesentlichen Punkten kompatibel zu g++ mit Ausahme einiger spezieller Modi für Devicecode.
 		
-		Die wichtigste Ausnahme ist: \li`-arch=compute_35 -code=compute_35`
+			Die wichtigste Ausnahme ist: \li`-arch=compute_35 -code=sm_35`
 		
-		Dieses lässt den Code explizit für eine \gls{compute capability} kompilieren, in diesem Fall 3.5. Damit lassen sich Features dieser \gls{compute capability} aktivieren. Allerdings ist der Code auf älteren Karten dann nicht mehr ausführbar (falls modernere Features verwendet wurden). "Arch" (Architecture) bezeichnet dabei das Chipdesign, "Code" die Software.
+			Dieses lässt den Code explizit für eine \gls{compute capability} kompilieren, in diesem Fall 3.5. Damit lassen sich Features dieser \gls{compute capability} aktivieren. Allerdings ist der Code auf älteren Karten dann nicht mehr ausführbar (falls modernere Features verwendet wurden). "Arch" (Architecture) bezeichnet dabei das Chipdesign, "Code" die Software. Gibt man mehrere Optionen an (getrennt mit Komma) an, so werden Cubins für alle Architekturen erstellt und in einem einzelnen Fatbinary verschmolzen. Beim Ausführen wir dann automatisch die richtige Architektur erkannt.
 		
-		Mit \li`-c` lassen sich wie gewohnt Objektdateien (\li`.o`) und damit statische und dynamische Librarys erstellen.
+			Mit \li`-c` lassen sich wie gewohnt Objektdateien (\li`.o`) und damit statische und dynamische Librarys (\li`-shared`) erstellen.
 		
-		Der Compiler inkludiert automatisch einige Header z.B. cuda.h oder math.h, sowohl für Host- als auch für Devicecode und linkt selbstständig mit den richtigen Bibliotheken. Für weitere Bibliotheken können selbstverständlich die Compilerflags \li`-I` und -\li`-L` sowie der Linker, z.B. für \li`-lgomp` benutzt werden.
-		Soll der zugrunde liegende C-Compiler konfiguriert werden, wird die Option \li`-Xcompiler` benötigt. Was nach dieser Option in Anführungszeichen folgt, wird dem C-Compiler exakt so mitgegeben, z.B. \li`-Xcompiler "-Wall -fopenmp"`.
+			Der Compiler inkludiert automatisch einige Header z.B. cuda.h oder math.h, sowohl für Host- als auch für Devicecode und linkt selbstständig mit den richtigen Bibliotheken. Für weitere Bibliotheken können selbstverständlich die Compilerflags \li`-I` und -\li`-L` sowie der Linker, z.B. für \li`-lgomp` benutzt werden.
+			Soll der zugrunde liegende C++-Compiler konfiguriert werden, wird die Option \li`-Xcompiler` benötigt. Was nach dieser Option in Anführungszeichen folgt, wird dem C++-Compiler exakt so mitgegeben, z.B. \li`-Xcompiler "-Wall -fopenmp -std=c++17"`.
 		
-		Das Verhalten des Compilers kann über verschiedene Umgebungsvariablen gesteuert werden. Eine Liste befindet sich im Anhang J des CUDA Programming Guides. \autocite{cudaPG} 
+			Das Verhalten des Compilers kann über verschiedene Umgebungsvariablen gesteuert werden. Eine Liste befindet sich im Anhang J des CUDA Programming Guides. \autocite{cudaPG} 
 		
-		Eine Objektdatei oder eine Bibliothek kann auch zusammen mit einer gewöhnlichen C++ Datei (.cpp) gelinkt werden. Dazu muss aber unter Umständen diese Datei die entsprechenden Header (cuda.h, cuda{\_}runtime.h) inkludieren und mit -lcudart linken. Dann kann auch ein anderer C-Compiler verwendet werden. Dies kann man nutzen, um Devicecode in eigene Module auszulagern und diesen damit von Hostcode strikt zu trennen. Dadurch lassen sich auch andere Compiler und deren Features mit Cuda kombinieren, z.B. der Intel- oder PGI-Compiler.
+			Eine Objektdatei oder eine Bibliothek kann auch zusammen mit einer gewöhnlichen C++ Datei (.cpp) gelinkt werden. Dazu muss aber unter Umständen diese Datei die entsprechenden Header (cuda.h, cuda{\_}runtime.h) inkludieren und mit -lcudart linken. Dann kann auch ein anderer C-Compiler verwendet werden. Dies kann man nutzen, um Devicecode in eigene Module auszulagern und diesen damit von Hostcode strikt zu trennen. Dadurch lassen sich auch andere Compiler und deren Features mit Cuda kombinieren, z.B. der Intel- oder PGI-Compiler.
+			\subsection{cuda-memcheck}
+			\subsection{nvprof}
+			\subsection{Nvidia Nsight}
+			\subsection{nvprune}
+			\subsection{nvdisasm und cuobjdump}
 		
-		\section{Asynchronizit\"at}\label{async}
-		\section{Device-gesteuerte Concurrency}\label{conc}

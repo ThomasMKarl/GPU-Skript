@@ -5,3 +5,17 @@ titlepage.pdf
 *.out
 *.aux
 *.toc
+*.bbl
+*.bcf
+*.blg
+*.glo
+*.idx
+*.ist
+*.lof
+*.log
+*.lol
+*.lot
+*.ptc
+*.run.xml
+*.glg
+*.gls
