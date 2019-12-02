@@ -49,6 +49,10 @@
 					\li`get_global_id(1)` & \li`blockIdx.y*blockdim.y + threadIdx.y` \\
 					\li`get_global_id(2)` & \li`blockIdx.z*blockdim.z + threadIdx.z` \\
 \hline					
+					\li`get_local_id(0)` & \li`threadIdx.x` \\
+					\li`get_local_id(1)` & \li`threadIdx.y` \\
+					\li`get_local_id(2)` & \li`threadIdx.z` \\
+\hline					
 					\li`get_local_size(0)` & \li`blockdim.x` \\
 					\li`get_local_size(1)` & \li`blockdim.y` \\
 					\li`get_local_size(2)` & \li`blockdim.z` \\
@@ -58,8 +62,9 @@
 					\li`get_global_size(2)` & \li`griddim.z` \\
 					
 					\li`clCreateBuffer(...)` & \li`cudaMalloc(...)` \\
-					\li`clEnqueueWriteBuffer(..)` & \li`cudaMemcpy(Async)(..., cudaMemcpyHostToDevice)` \\
-					\li`clEnqueueReadBuffer(..)` & \li`cudaMemcpy(Async)(..., cudaMemcpyDeviceToHost)` \\
+					\li`clEnqueueWriteBuffer(...)` & \li`cudaMemcpy(Async)(..., cudaMemcpyHostToDevice)` \\
+					\li`clEnqueueReadBuffer(...)` & \li`cudaMemcpy(Async)(..., cudaMemcpyDeviceToHost)`  \\
+					\li`clEnqueueCopyBuffer(...)` & \li`cudaMemcpy(Async)(..., cudaMemcpyDeviceToDevice)`  \\
 					\li`clEnqueueNDRangeKernel(..., <Kernel>, ...)`, \li`clSetKernelArg(...)` & \li`<kernelcall><<<...>>>(...)` \\
 \hline
 					\li`barrier(CLK_LOCAL_MEM_FENCE)` & \li`__syncthreads()` \\
@@ -75,7 +80,7 @@
 		\section{Programmiermodell}
 		Im Gegensatz zu CUDA fordert OpenCL eine strikte Trennung von Host- und Devicecode in verschiedenen Dateien. Das Hostprogramm wird mittels der OpenCL C-\Gls{API} programmiert (oder C++ Wrapper), bei der es sich um eine gewöhnliche C-Library handelt. Dieses Hostprogramm wird mit einem beliebigen C- oder C++-Compiler übersetzt und unterstützt damit auch die modernste Features beider Programmiersprachen.
 		
-		Das Deviceprogramm, also die \Gls{Kernel} liegen in einer oder mehrerer seperater Dateien vor, die als String vom Hostprogramm eingelesen werden. Dies hat den Vorteil, dass zu Compilezeit der Inhalt des Programms nicht bekannt sein muss und damit auch nicht verändert wird. Erst zur Laufzeit wird unsichtbar für den Nutzer der OpenCL Compiler gerufen und das OpenCL Programm kompiliert und ausgeführt. Bei einer Änderung eines \Glspl{Kernel} muss das Hostprogramm also nicht noch ein weiteres Mal kompiliert werden.
+		Das Deviceprogramm, also die \Gls{Kernel} liegen in einer oder mehrerer seperater Dateien vor, die als String vom Hostprogramm eingelesen werden. Dies hat den Vorteil, dass zu Compilezeit der Inhalt des Programms nicht bekannt sein muss und damit auch nicht verändert wird. Erst zur Laufzeit wird unsichtbar für den Nutzer der OpenCL Compiler gerufen und das OpenCL Programm kompiliert und ausgeführt (Just-In-Time Compiler, JIT). Bei einer Änderung eines \Glspl{Kernel} muss das Hostprogramm also nicht noch ein weiteres Mal kompiliert werden.
 		
 		Devicecode wird in der eigentlichen Programmiersprache OpenCL C geschrieben, die sich im Wesentlichen an C99 orientiert. Teilweise wurde auch C++ unter dem Namen OpenCL C++ implementiert (siehe \ref{OCLC++}). Es folgt eine Auflistung der wichtigsten Einschränkungen:
 		\begin{itemize}
@@ -99,35 +104,46 @@
 		
 			\subsection{Platformen}
 			Da mehrere Verschiedene Implementierungen von OpenCL existieren, muss zunächst eine \Gls{Platform} ausgewählt werden. Die Khronos Gruppe aktualisiert stetig die Liste aller Platformen: \url{https://www.khronos.org/conformance/adopters/conformant-products/opencl}
-			\newpage
 			\begin{lstlisting}[caption=~Platformabfrage]
 			cl_platform_id platform_id = NULL;
-			cl_uint ret_num_platforms;
-			clGetPlatformIDs(1,&platform_id, &ret_num_platforms);
+			uint ret_num_platforms;
+			clGetPlatformIDs(1, &platform_id, &ret_num_platforms);
 			\end{lstlisting}
 
 			\li`platform_id` kann bei mehreren Platformen ein Array von IDs sein. In diesem Fall muss im ersten Argument angegeben werden, nach wie vielen Platformen gesucht werden soll.
 			
 			Die meisten \Gls{API} Aufrufe geben einen Fehlercode zurück, der in einer Tabelle nachgeschlagen werden kann: \url{https://streamhpc.com/blog/2013-04-28/opencl-error-codes/}
 			
-			Im Folgenden werden nur die OpenCL eigenen Datentypen verwendet (siehe \ref{makros}).					
+			Im Folgenden werden nur die OpenCL eigenen Datentypen verwendet (siehe \ref{makros}).
+							
 			\subsection{Devices}
 			Jede \Gls{Platform} stellt OpenCL für ein oder auch mehrere Geräte zur Verfügung. Im nächsten Schritt müssen also die entsprechenden Devices den gefundenen \Glspl{Platform} zugeordnet werden.		
 			\begin{lstlisting}[caption=~Deviceabfrage]
 			cl_device_id device_id = NULL;	
+			uint ret_num_devices;
 			clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_DEFAULT, 1, 
 				&device_id, &ret_num_devices);
 			\end{lstlisting}
-			Auch hier kann \li`device_id` ein Vektor sein. Für den Typ des Geräts existieren folgende Möglichkeiten:
+			
+			Auch hier kann \li`device_id` ein Vektor sein. Die zweite Eingabe bezeichnet als Bitfeld die Device Typen, die abgefragt werden sollen. Mehrere Typen können mit dem Operator | abgetrennt werden. Für den Typ des Geräts existieren folgende Möglichkeiten:
+						
+			\begin{itemize}		
+			\item \li`CL_DEVICE_TYPE_CPU`	
+			\item \li`CL_DEVICE_TYPE_GPU`		
+			\item \li`CL_DEVICE_TYPE_ACCELERATOR`		
+			\item \li`CL_DEVICE_TYPE_DEFAULT`			
+			\item \li`CL_DEVICE_TYPE_ALL`
+			\end{itemize}
 				
 			\subsection{Kontexte}
-			Ein \Gls{Kontext} ist ein \Gls{Handle} für das OpenCL Programm. Dieser beinhaltet Speicherobjekte, Programme und Command Queues. Folglich müssen diese also einem neu erstellten \Gls{Kontext} zugeordnet werden. Abbildung \ref{4:class} zeigt die Zusammenhänge sämtlicher OpenCL Klassen \autocite{oclRC} basierend auf Unified Modelling Language (UML). \autocite{uml}
+			Ein \Gls{Kontext} ist ein \Gls{Handle} für das OpenCL Programm. Dieser beinhaltet Speicherobjekte, Programme und Command Queues. Folglich müssen diese also einem neu erstellten \Gls{Kontext} zugeordnet werden. Abbildung \ref{4:class} zeigt die Zusammenhänge sämtlicher OpenCL Klassen \autocite{oclRC} basierend auf der Unified Modelling Language (UML). \autocite{uml}
 			\begin{lstlisting}[caption=~Kontexte]
 			cl_int ret;
 			cl_context context = clCreateContext(NULL, 1, &device_id, 
 				NULL, NULL, &ret);	
 			\end{lstlisting}
-			Sollte eine Funktion über einen eigenen Rückgabewert verfügen, so ist das letzte Argument üblicherweise eine Referenz auf einen Fehlercode.
+			
+			Sollte eine Funktion über einen eigenen Rückgabewert verfügen, so ist das letzte Argument üblicherweise ein Pointer auf einen Fehlercode.
 			\begin{figure}[h]
 				\centering
 				\includegraphics[width=0.7\textwidth]{/home/kat10110/script/chapter4/pictures/class.jpg}
@@ -154,12 +170,13 @@
 			source_size = fread(source_str, 1, s, fp);
 			fclose(fp);
 			
-			cl_program program = clCreateProgramWithSource(context, 1, (const char **)&source_str, (const size_t *)&source_size, &ret);
+			cl_program program = clCreateProgramWithSource(context, 1, 
+				(const char **)&source_str, (const size_t *)&source_size, &ret);
 			\end{lstlisting}
 			
-			Mittels \li`clBuildProgram(program, 1, &device_id, "-D name=definition -I dir", NULL, NULL)` lassen sich ähnlich dem C-Compiler dem OpenCl Compiler zusätliche Informationen mitgeben. So lässt sich der Include-Pfad erweitern. Außerdem können mit -D Makros gesetzt werden. Eine Auflistung voreingestellter Makros findet sich in Kapitel \ref{makros}.
+			Mittels \li`clBuildProgram(program, 1, &device_id, "-D name=definition -I dir", NULL, NULL)` lassen sich ähnlich dem C-Compiler dem OpenCl Compiler zusätliche Informationen mitgeben (siehe auch \url{https://www.khronos.org/registry/OpenCL/sdk/1.0/docs/man/xhtml/clBuildProgram.html}). Ebenso muss man hier eine Liste der Devices übergeben, für die der Code kompiliert werden soll. So lässt sich der Include-Pfad erweitern. Außerdem können mit \li`-D` Makros gesetzt werden. Eine Auflistung voreingestellter Makros findet sich in Kapitel \ref{makros}.
 			
-			Das vorletzte Argument kann einen Pointer auf eine Funktion enthalten, die nach erfolgreichem Kompilieren ausgeführt werden soll. Das letzte Argument kann die Argumente dieser Funktion beinhalten.
+			Das vorletzte Argument kann einen Pointer auf eine Funktion enthalten, die nach erfolgreichem Kompilieren ausgeführt werden soll (Callback). Das letzte Argument kann die Argumente dieser Funktion beinhalten.
 			
 			Da an dieser Stelle erst das eigentliche OpenCL Programm kompiliert wird, muss nun der Output des OpenCL Compilers abgefragt werden.
 			
@@ -210,9 +227,9 @@
 			\subsection{Kernel}
 			Danach kann das eigentliche \Gls{Kernel} erstellt werden. Dazu muss der Name der Funktion als String übergeben werden. Das Programmieren der Kernels funktioniert ähnlich wie in CUDA.			
 			\begin{lstlisting}[caption=~Kerneldefinition]
-			__kernel void vecadd(__constant float *x, __constant float* y, __global float *res, const uint size)
+			__kernel void vecadd(__constant float *x, __constant float* y, __global float *res, const int size)
 			{
-  				uint i = get_global_id(0);
+  				int i = get_global_id(0);
   				if(i < size)
     				res[i] = x[i] + y[i];
 			}
@@ -230,22 +247,12 @@
 				size*sizeof(cl_float), NULL, &ret);
 			cl_mem d_res = clCreateBuffer(context, CL_MEM_WRITE_ONLY, 
 				size*sizeof(cl_float), NULL, &ret);
-			
-			clEnqueueWriteBuffer(command_queue, d_x, CL_TRUE, 0, 
-				size*sizeof(cl_float), h_x, 0, NULL, NULL);
-			clEnqueueWriteBuffer(command_queue, d_y, CL_TRUE, 0, 
-				size*sizeof(cl_float), h_y, 0, NULL, NULL);
-			
-			cl_kernel kernel_vecadd = clCreateKernel(program, "vecadd", &ret);
-			
-			
-			
-			clSetKernelArg(kernel_vecadd, 0, sizeof(cl_mem),  (void *)&d_x);
-			clSetKernelArg(kernel_vecadd, 1, sizeof(cl_mem),  (void *)&d_y);
-			clSetKernelArg(kernel_vecadd, 2, sizeof(cl_mem),  (void *)&d_res);
-			clSetKernelArg(kernel_vecadd, 3, sizeof(cl_uint), &size);
-			
-			// Ausführen...
+			cl_kernel kernel_vecadd = clCreateKernel(program, "vecadd", &ret);	
+			size_t narg = 0;
+			clSetKernelArg(kernel_vecadd, narg++, sizeof(cl_mem),  (void *)&d_x);
+			clSetKernelArg(kernel_vecadd, narg++, sizeof(cl_mem),  (void *)&d_y);
+			clSetKernelArg(kernel_vecadd, narg++, sizeof(cl_mem),  (void *)&d_res);
+			clSetKernelArg(kernel_vecadd, narg++, sizeof(cl_uint), &size);
 			\end{lstlisting}
 			
 			Ein Buffer kann in verschiedenen Modi erstellt werden (\ref{tab4:flags}).
@@ -265,25 +272,34 @@
 				\label{tab4:flags}
 			\end{table}
 			
-			Das vorletzte Argument ist eine Referenz auf den Hostspeicher.
+			Das vorletzte Argument ist ein Pointer auf den Hostspeicher.
 			
-			Mehrere Flags können grundsätzlich über eine Abtrennung mit | gleichzeitig gesetzt werden. Mit der Angabe von \li`CL_TRUE` wird der Host blockiert. Die Angabe danach gibt einen Offset auf der Speicheradresse an.
+			Mehrere Flags können grundsätzlich über eine Abtrennung mit | gleichzeitig gesetzt werden. Mit der Angabe von \li`CL_TRUE` wird der Host blockiert (\li`CL_FALSE entspricht also \li`cudaMemcpyAsync(...)``). Die Angabe danach gibt einen Offset auf der Speicheradresse an.
 							
 			\subsection{Command Queues}
-			Statt \Glspl{Stream} existieren in OpenCL \Glspl{Command Queue}. Jede Speicheranweisung (Kopieren, Lesen, Allozieren...) muss in eine \Gls{Command Queue} eingereiht werden. Zum Schluss wird die Warteschlange mit dem \Gls{Kernel} ausgeführt und erzeugt dabei ein Event. Das Lesen des Speichers erfolgt, sobald dieses Event stattgefunden hat. Am Ende wird der Speicher freigegeben.
+			Statt \Glspl{Stream} existieren in OpenCL \Glspl{Command Queue}. Jede Speicheranweisung (Kopieren, Lesen) muss in eine \Gls{Command Queue} eingereiht werden. Zum Schluss wird die Warteschlange mit dem \Gls{Kernel} ausgeführt und erzeugt dabei ein Event. Das Lesen des Speichers erfolgt, sobald dieses Event stattgefunden hat. Am Ende wird der Speicher freigegeben.
 			
-		\newpage
 		\begin{lstlisting}[caption=~Command Queues und Clean-Up]
-		cl_command_queue command_queue = clCreateCommandQueue(context, device_id, 0, &ret);
+		const cl_queue_properties  props = ...; 
+		cl_command_queue command_queue = clCreateCommandQueueWithProperties(context, device_id, &props, &ret);
 		
+		clEnqueueWriteBuffer(command_queue, d_x, CL_TRUE, 0, 
+			size*sizeof(cl_float), h_x, 0, NULL, NULL);	
+		clEnqueueWriteBuffer(command_queue, d_y, CL_TRUE, 0, 
+			size*sizeof(cl_float), h_y, 0, NULL, NULL);
+				
+				
+				
 		size_t global_item_size = ... //Zahl der Workitems gesamt
 		size_t local_item_size = ... //Größe der Workgroup
 		cl_event vecadd_event;
-		clEnqueueNDRangeKernel(command_queue, kernel_vecadd, 1, NULL, &global_item_size, &local_item_size, 0, NULL, &vecadd_event);
+		clEnqueueNDRangeKernel(command_queue, kernel_vecadd, 1, NULL, 
+			&global_item_size, &local_item_size, 0, NULL, &vecadd_event);
 		
-		clEnqueueReadBuffer(command_queue, d_res, CL_TRUE, 0, size*sizeof(cl_float), h_res, 1, &vecadd_event, NULL);  
+		clEnqueueReadBuffer(command_queue, d_res, CL_TRUE, 0, 
+			size*sizeof(cl_float), h_res, 1, &vecadd_event, NULL);  
 			
-		clFlush(command_queue);
+		/* clFlush(command_queue); */
 		clFinish(command_queue);
 		
 		clReleaseKernel(kernel_vecadd);
@@ -298,26 +314,48 @@
 
 		free(...);
 		\end{lstlisting}
-		Das letzte Argument von \li`clEnqueueNDRangeKernel`, \li`clEnqueueReadBuffer` und \li`clEnqueueWriteBuffer` enthält eine Referenz auf ein Event. Das Event hat stattgefunden, sobald die Funktion ausgeführt wurde. Das vorletzte Argument enthält eine Liste von Events. Das drittletzte Argument gibt an, auf wie viele dieser Events gewartet werden muss, bis die Funktion ausgeführt werden soll. Jeder \Gls{API} Aufruf erfolgt also grundsätzlich asynchron. \li`clFinish` bildet eine Barriere für die CPU bis die entsprechende \Gls{Command Queue} ausgeführt wurde. Für Thread-paralleles Programmieren der CPU existiert der Befehl \li`clFlush`, der eine Barriere bildet, bis eine bestimmte \Gls{Command Queue} aufgebaut wurde.
+		
+		\li`props` bezeichnet eine Liste  verschiedener Flags, mit denen die \Gls{Command Queue} erstellt werden kann. Es existieren zwei Möglichkeiten:
+		\begin{itemize}
+			\item \li`CL_QUEUE_PROPERTIES`: ein Bitfeld, dass eine Kombination folgender Werte sein kann:
+			\begin{itemize}
+				\item \li`CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE`: ermöglicht Concurrency auf dem Device in der selben \Gls{Command Queue}
+				\item \li`CL_QUEUE_PROFILING_ENABLE`: ermöglicht Profiling Kommandos
+				\item \li`CL_QUEUE_ON_DEVICE`: erstellt eine Device Queue (kann nur mit\\ \li`CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE` verwendet werden)
+				\item \li`CL_QUEUE_ON_DEVICE_DEFAULT`: erstellt die default Device Queue (nur eine pro Kontext) (kann nur mit \li`CL_QUEUE_ON_DEVICE` verwendet werden)
+			\end{itemize}
+			\item \li`CL_QUEUE_SIZE`: ein \li`cl_uint`, der die Größe der Device Queue in Bytes angibt (kann nur mit \li`CL_QUEUE_ON_DEVICE` verwendet werden)
+		\end{itemize}
+		
+		In früheren Versionen existierte die Funktion \li`clCreateCommandQueue`, wird jedoch mittlerweile als veraltet angesehen.
+		
+		Das letzte Argument von \li`clEnqueueNDRangeKernel`, \li`clEnqueueReadBuffer` und \li`clEnqueueWriteBuffer` enthält einen Pointer auf ein Event. Das Event hat stattgefunden, sobald die Funktion ausgeführt wurde. Das vorletzte Argument enthält eine Liste von Events. Das drittletzte Argument gibt an, auf wie viele dieser Events gewartet werden muss, bis die Funktion ausgeführt werden soll. Da sixh die Kommandos in der selben \Gls{Command Queue} befinden, werden sie ohnehin in Reihe ausgeführt werden. Wird die \Gls{Command Queue} jedoch mit der Eigenschaft \li`CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE` erstellt, so überlappen die Aktionen möglicherweise (Concurrency) und müssen explizit synchronisiert werden. Alternativ lassen sich für verschiedene Kontexte und Devices mehrere \Glspl{Command Queue} erstellen und so parallel bearbeiten.
+		
+		Jeder \Gls{API} Aufruf erfolgt also grundsätzlich asynchron. \li`clFinish` bildet eine Barriere für die CPU bis die entsprechende \Gls{Command Queue} ausgeführt wurde. Für Thread-paralleles Programmieren der CPU existiert der Befehl \li`clFlush`, der eine Barriere bildet, bis eine bestimmte \Gls{Command Queue} aufgebaut wurde.
 			
 		\section{Datentypen und Makros}\label{makros}
-		Die OpenCL \Gls{API} definiert sich einige Datentypen um Plattformunabhängigkeit zu gewährleisten. Beispielsweise garantiert \li`cl_int`, dass es sich dabei unabhängig von Compiler und Betriebssystem um eine 32bit Ganzzahl handelt.
+		Das OpenCL \Gls{API} definiert sich einige Datentypen um Plattformunabhängigkeit zu gewährleisten. Beispielsweise garantiert \li`cl_int`, dass es sich dabei unabhängig von Compiler und Betriebssystem um eine 32bit Ganzzahl handelt.
 		
 		\textbf{Datentypen:}		
 		
 		\begin{itemize}
-		\item Skalare:\\ \url{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/scalarDataTypes.html}
-		\item Vektor:\\ \url{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/vectorDataTypes.html}
-		\item Abstarkte:\\ \url{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/abstractDataTypes.html}
-		\item Reservierte:\\ \url{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/reservedDataTypes.html}
-		\item Sonstige:\\ \url{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/otherDataTypes.html}
+			\item Skalare:\\ \href{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/scalarDataTypes.html}
+			{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/\\scalarDataTypes.html}
+			\item Vektor:\\ \href{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/vectorDataTypes.html}
+			{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/\\vectorDataTypes.html}
+			\item Abstrakte:\\ \href{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/abstractDataTypes.html}
+			{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/\\abstractDataTypes.html}
+			\item Reservierte:\\ \href{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/reservedDataTypes.html}
+			{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/\\reservedDataTypes.html}
+			\item Sonstige:\\ \href{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/otherDataTypes.html}
+			{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/\\otherDataTypes.html}
 		\end{itemize}		
 		
-		Alle Präprozessordirektiven von C99 werden unterstützt. Einige weitere wurden zusätzlich definiert:\\ \url{https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/preprocessorDirectives.html}		
+		Alle Präprozessordirektiven von C99 werden unterstützt. Einige weitere wurden zusätzlich definiert:\\ \href{https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/preprocessorDirectives.html}{\small https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/preprocessorDirectives.html}		
 		
 		\section{Images}
 		Das Image Format ist eine Datenstruktur, die speziell auf Bilformate optimiert wurde.
-		\begin{lstlisting}
+		\begin{lstlisting}[caption=~OpenCL Images]
 		cl_mem clCreateImage(
 			cl_context context, 
 			cl_mem_flags flags,
@@ -325,12 +363,13 @@
 			const cl_image_desc *image_desc,
 			void *host_ptr,
 			cl_int *errcode_ret)
-		\end{lstlisting}		
+		\end{lstlisting}	
+			
 		Das Erstellen funktionier ähnlich zu einem gewöhnlichen Speicherobjekt. Allerdings handelt es sich dabei um eine Datenstruktur, deren genauer Inhalt angegeben werden muss. \li`image_format` enthält Informationen über das Datenformat des Bildes: \url{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/cl_image_format.html}
 		
 		Bei einem CL\_ FLOAT/RGB-Bild besteht jedes Element der Datenstruktur also aus vier float Werten, von denen jede ein Pixel des Bildes beschreibt, also Rotwert, Grünwert, Blauwert und Alphachannel.
 		
-		\li`cl_image_dsc` enthält Informationen über die Struktur des Bildes, z.B. Höhe und Breite in Pixel: \url{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/cl_image_desc.html}
+		\li`cl_image_dsc` enthält Informationen über die Struktur des Bildes, z.B. Höhe und Breite in Pixel: \href{https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/cl_image_desc.html}{\small https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/cl{\_}image{\_}desc.html}
 		
 		\section{Pipes}
 		Das Pipe Objekt exisitiert erst seit OpenCl 2.0 und bezeichnet einen globalen Memorybuffer der kontroliert gelesen und geschrieben werden kann. Pipes können vom Host nur zur Übergabe an ein \Gls{Kernel} benutzt werden. Im Device Code können Pipes nur über built-in Funktionen verändert werden: \url{https://www.khronos.org/registry/OpenCL/sdk/2.0/docs/man/xhtml/pipeFunctions.html}
@@ -351,28 +390,23 @@
 		cl::Program program(context, sources);
 		program.build(devices);
 
-		cl::Buffer d_x = cl::Buffer(
-			context, 
+		cl::Buffer d_x = cl::Buffer(context, 
 			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
-			size*sizeof(cl_float), 
-			(void*)&h_x[0]);
+			size*sizeof(cl_float), (void*)&h_x[0]);
 
-		cl::Buffer d_y = cl::Buffer(
-			context, 
+		cl::Buffer d_y = cl::Buffer(context, 
 			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
-			size*sizeof(cl_float), 
-			(void*)&h_y[0]);
+			size*sizeof(cl_float), (void*)&h_y[0]);
 
-		cl::Buffer d_res = cl::Buffer(
-			context, 
-			CL_MEM_WRITE_ONLY, 
-			size*sizeof(cl_float));
+		cl::Buffer d_res = cl::Buffer(context, 
+			CL_MEM_WRITE_ONLY, size*sizeof(cl_float));
 
 		cl::Kernel kernel(program, "vecadd");
-		kernel.setArg(0, d_x);
-		kernel.setArg(1, d_y);
-		kernel.setArg(2, d_res);
-		kernel.setArg(3, size);
+		size_t narg = 0;
+		kernel.setArg(narg++, d_x);
+		kernel.setArg(narg++, d_y);
+		kernel.setArg(narg++, d_res);
+		kernel.setArg(narg++, size);
     
 		cl::CommandQueue queue(context, devices[0], 0);
 
@@ -382,15 +416,11 @@
 			cl::NDRange(size), 
 			cl::NullRange);
  
-		cl_float *h_res = (cl_float*)queue.enqueueMapBuffer(
-			d_res,
-			CL_TRUE,
-			CL_MAP_READ,
-			0,
-			size*sizeof(cl_float));
+		cl_float *h_res = (cl_float*)queue.enqueueMapBuffer(d_res,
+			CL_TRUE, CL_MAP_READ, 0, size*sizeof(cl_float));
 
 		//Ausgabe auf Host
-
+		
 		queue.enqueueUnmapMemObject(d_res, (void*)h_res);
 		\end{lstlisting}
 		Die OpenCL Objekte sind nun Instanzen echter C++ Klassen, die sich im Namespace \li`cl` befinden. Das \li`cl_mem` Objekt nennt sich nun \li`Buffer` und wird durch einen expliziten Aufruf eines Konstruktors erstellt. Funktionen, die auf Objekten operieren, sind nun Member-Funktionen der entsprechenden Klasse. Am Ende eines Scopes wird ihr Destruktor automatisch aufgerufen, ein explizites freigeben von Speicher ist daher nicht nötig (außer Ausgabearray auf Host).
@@ -405,7 +435,7 @@
 			\item Allocate/Release Memory
 			\item Virtual Functions 
 			\item Abstract Classes Function Pointers
-			\item Recursion 
+			\item Rekursionen 
 			\item goto
 		\end{itemize}
 		
@@ -471,10 +501,6 @@
 
 			return vec;
 		}
-
-
-
-
 
 		__kernel void add_matrices(float4 *in1, float4 *in2, float4 *result) 
 		{

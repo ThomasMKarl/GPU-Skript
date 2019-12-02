@@ -525,6 +525,7 @@
 			for (int i = start; i < n2; i+= stride) 
 					y2[i] = __hfma2(__halves2half2(a, a), x2[i], y2[i]);
 
+
 			if (start == 0 && (n%2))
 					y[n-1] = __hfma(a, x[n-1], y[n-1]);
 		}
@@ -546,16 +547,117 @@
 		
 		Diese Form der Implementierung ist sehr langsam und eher zum Debuggen gedacht. Eine parallele Methode ist erforderlich. Im Prinzip nimmt zu Beginn jeder \Gls{Thread} zwei Werte und führt die Operation aus. Der nächste \Gls{Thread} nimmt abermals zwei Werte ohne Überlapp zum Vorherigen. Nach einem Schritt hat sich die Anzahl der zu reduzierenden Elemente halbiert. Im nächsten Schritt wird mit der halben Zahl der \Glspl{Thread} abermals halbiert, bis die Reduktion bereit steht.
 		
-		Im Folgenden wird eine naive Implementierung mit einfachen Mitteln optimiert.
+		Das folgende Beispiel zeigt eine einfache Implementierung der Summenreduktion:
 		
-		--SIEHE reduction.cu--
+		\begin{lstlisting}[caption=~Reduktion]		
+		__global__ void reduction(int *data)
+		{
+			uint tid = threadIdx.x;
+			uint i = blockIdx.x*(blockDim.x*2)+threadIdx.x;
+
+			extern __shared__ int sm[]; 
+			sm[tid] = data[i] + data[i + blockDim.x];
+  
+			for (uint stride = blockDim.x/2; stride > 32; stride >>= 1)
+			{
+				__syncthreads();
+				if(tid < stride) sm[tid] += sm[tid + stride];
+			}
+			if (tid < 32)
+  			{
+				sm[tid] += sm[tid + 32];
+				sm[tid] += sm[tid + 16];
+				sm[tid] += sm[tid +  8];
+				sm[tid] += sm[tid +  4];
+				sm[tid] += sm[tid +  2];
+				sm[tid] += sm[tid +  1];
+			}
+  
+			if(tid == 0) data[blockIdx.x] = sm[0];
+		}
+		
+			...
+			uint maxThreads = ...;
+			uint threads = (n < maxThreads) ? n : maxThreads;
+			uint blocks = n/threads;
+
+			uint smSize = threads*sizeof(int);
+
+			reduction<<<blocks, threads, smSize>>>(data);  
+
+			uint toDo = 0;
+			if (blocks > 1) toDo = 1 + blocks/maxThreads;
+			for(uint i = 0; i < toDo; ++i)
+			{
+				threads = (blocks < maxThreads) ? blocks : maxThreads;
+				blocks /= threads;
+				reduction<<<blocks, threads, smSize>>>(d);
+			}
+			...
+		\end{lstlisting}
 		
 		Verschiedene HPC Librarys bieten Implementierungen der gängigsten Reduktionen an, z.B. THRUST oder MAGMA. 
 		
 		\section{Dynamischer Parallelismus}\label{dyn}
+		\begin{lstlisting}[caption=~Dynamischer Parallelismus]
+			...
+  			kernel_parent<<<1,1>>>(device, &N);
+			...
+			
+		__global__ void kernel_parent(float* data, uint* N)
+		{
+  			uint newN = *N/2;
+  
+			cudaStream_t stream1; 
+			cudaStreamCreateWithFlags(&stream1, cudaStreamDefault);
+  
+			float *device1;
+			cudaMalloc(&device1, newN*sizeof(float));
+			cudaMemcpyAsync(device1, data, newN*sizeof(float), 
+				cudaMemcpyDeviceToDevice, stream1);
+  
+			kernel_child <<<1, 1, 0, stream1>>>(device1, &newN);
+  
+			cudaStream_t stream2; 
+			cudaStreamCreateWithFlags(&stream2, cudaStreamDefault);
+			float *device2;
+			cudaMalloc(&device2, newN*sizeof(float));
+			cudaMemcpyAsync(device2, data+*N/2, newN*sizeof(float), 
+				cudaMemcpyDeviceToDevice, stream2);
+  
+			kernel_child <<<1, 1, 0, stream2>>>(device2, &newN);
+		}
+
+		__global__ void kernel_child(float* data, uint *N)
+		{
+			uint newN = *N/2;
+  
+			cudaStream_t stream1; 
+			cudaStreamCreateWithFlags(&stream1, cudaStreamDefault);
+			
+			float *device1;
+			cudaMalloc(&device1, newN*sizeof(float));
+			cudaMemcpyAsync(device1, data, newN*sizeof(float), 
+				cudaMemcpyDeviceToDevice, stream1);
+  
+			kernel_child <<<1, 1, 0, stream1>>>(device1, &newN);
+  
+			cudaStream_t stream2; 
+			cudaStreamCreateWithFlags(&stream2, cudaStreamDefault);
+			
+			float *device2;
+			cudaMalloc(&device2, newN*sizeof(float));
+			cudaMemcpyAsync(device2, data+*N/2, newN*sizeof(float), 
+				cudaMemcpyDeviceToDevice, stream2);
+  
+			kernel_child <<<1, 1, 0, stream2>>>(device2, &newN);
+		}
+		\end{lstlisting}
 		
-		\section{CUDA-Toolkit}
-			\section{Baumstruktur}
+		Kompilieren: \li`nvcc dynpar.cu -arch=compute_61 -code=sm_61 -rdc=true -lcudadevrt`
+		
+		\section{~CUDA-Toolkit}
+			\subsection{Baumstruktur}
 			\subsection{NVCC}
 			Der Nvidia CUDA Compiler (\gls{nvcc}) wird benutzt um sowohl Host- als auch Devicecode zu kompilieren. Es handelt sich dabei um eine Obermenge des g++. Es lässt sich bis zum C++14 Standard alles in C oder C++ kompilieren. Soll explizit CUDA Code kompiliert werden, so muss die Quelldatei die Dateiendung \li`.cu` tragen. Andernfalls wird der Code als gewöhnliches C++ kompiliert und der Compiler liefert Fehler, sobald er auf Devicecode oder auf einen Aufruf der Runtime Library stößt.
 		
