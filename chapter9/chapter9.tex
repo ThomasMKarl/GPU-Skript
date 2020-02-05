@@ -1,0 +1,39 @@
+	\chapter{Intel oneAPI}
+	
+	\url{https://software.intel.com/en-us/oneapi}
+	
+	\begin{lstlisting}[caption=oneAPI]
+	#include<vector>
+	#include<CL/sycl.hpp>
+
+	namespace sycl = cl::sycl;
+	
+	...
+
+		std::array<int, SIZE> a, b, c;
+	
+		sycl::range<1> a_size{SIZE};
+		
+		auto platforms = sycl::platform::get_platforms();
+		for(auto &platform : platforms) auto devices = platform.get_devices();
+		
+		sycl::default_selector device_selector;
+		sycl::queue d_queue(device_selector);
+		
+		d_queue.submit(
+			[&](sycl::handler &cgh) 
+			{
+				auto c_res = c_device.get_access<sycl::access::mode::write>(cgh);
+
+				auto a_in = a_device.get_access<sycl::access::mode::read>(cgh);
+				auto b_in = b_device.get_access<sycl::access::mode::read>(cgh);
+
+				cgh.parallel_for<class ex1>(
+					a_size, [=](sycl::id<1> idx) 
+					{
+						c_res[idx] = a_in[idx] + b_in[idx];
+					}
+				);
+			}
+		);
+		\end{lstlisting}

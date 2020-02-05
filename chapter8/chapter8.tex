@@ -1,0 +1,211 @@
+	\chapter{High Performance Computing mit FPGAs}
+		\section{Field Programmable Gate Array}
+		Aus Wikipedia:
+		"Ein Field Programmable Gate Array (FPGA) ist ein integrierter Schaltkreis (IC) der Digitaltechnik, in welchen eine logische Schaltung geladen werden kann. Die englische Bezeichnung kann übersetzt werden als im Feld (also vor Ort, beim Kunden) programmierbare (Logik-)Gatter-Anordnung.
+
+		Anders als bei der Programmierung von Computern, Microcontrollern oder Steuerungen bezieht sich hier der Begriff Programmierung nicht nur auf die Vorgabe zeitlicher Abläufe, sondern vor allem auf die Definition der gewünschten Schaltungsstruktur. Diese wird mittels einer Hardwarebeschreibungssprache formuliert und von einer Erzeugersoftware in eine Konfigurationsdatei übersetzt, welche vorgibt, wie die physischen Elemente im FPGA verschaltet werden sollen. Man spricht daher auch von der Konfiguration eines FPGA."
+
+		Seit einigen Jahren werden FPGAs nicht nur im Bereich Elektronik, sondern auch vermehrt für Anwendungen im HPC verwendet. Dabei werden Steckkarten für die PCIe Schnittstelle entwickelt, die mit verschiedenen Programmiersprachen vom Host aus programmiert werden und bestimmte Teile eines Programms auf einem FPGA als Koprozessor beschleunigen. Dieses Programm wird von einem speziellen Compiler, der vom Hersteller entwickelt wurde, in sogenannte Hardware Beschreibungssprache (HDL) übersetzt. FPGAs werden meistens bei schwer parallelisierbaren Problemen eingesetzt, z.B. in der Finanzmathematik, bei Datenbankzugriffen und bei Dateikompression. Allerdings versuchen Hersteller dies auch auf SIMD Probleme zu erweitern. Vorreiter ist hier der Marktführer Xilinx, der auch Librarys für Machine Learning anbietet, wie etwa eine FPGA Implementierung von Tensorflow. Xilinx verspricht einen bis zu achtfach höheren Durchsatz beim Evaluieren eines trainierten Modells gegenüber einer Tesla V100.
+		
+		Im Folgenden soll am Beispiel Vektoraddition das Programmiermodell verdeutlicht werden. Das Programm wurde für eine Alveo Karte von Xilinx geschrieben.
+
+		\section{Offloading mittels OpenCL API}
+		Die quelloffene OpenCL C/C++ \Gls{API} lässt sich gut für das Offloading von Speicher und das Ausführen von \Glspl{Kernel} auf dem FPGA nutzen. Der Hersteller stellt dafür einen eigenen Treiber bereit. Die Programmierung des Host Codes funktioniert damit analog zu OpenCL. Ein Array im Host Speicher muss allerdings page-aligned abgelegt werden, um bei der Kopie in den \gls{global Memory} überflüssiges Umkopieren zu vermeiden. Alle benötigten Funktionen befinden sich im Header \textit{xcl2.hpp} unter \url{https://github.com/Xilinx/SDAccel_Examples/tree/master/libs/xcl2}, der weitere Xilinx spezifische Dateien inkludiert. Zur Benutzung muss beim Kompilieren mit \textit{libxilinxopencl} gelinkt werden, eine Erweiterung für OpenCL. Header und Librarys sind Teil der quelloffenen Xilinx Runtime (XRT), die unter \url{https://github.com/Xilinx/XRT} heruntergeladen werden kann.		
+		\begin{lstlisting}[caption=FPGA: Host Programm]
+		#include "xcl2.hpp"
+		#define DATA_SIZE 4096
+		...
+
+		std::vector<int, aligned_allocator<int>> source_in1(DATA_SIZE);
+		std::vector<int, aligned_allocator<int>> source_in2(DATA_SIZE);
+		std::vector<int, aligned_allocator<int>> source_hw_results(DATA_SIZE);
+		std::vector<int, aligned_allocator<int>> source_sw_results(DATA_SIZE);
+
+		...
+
+		auto devices = xcl::get_xil_devices();
+		auto device = devices[0];
+
+		cl::Context context(device, NULL, NULL, NULL, NULL);
+		cl::CommandQueue q(context, device, CL_QUEUE_PROFILING_ENABLE, NULL);
+
+		std::string binaryFile = ...:
+		unsigned fileBufSize;
+		auto fileBuf = xcl::read_binary_file(binaryFile, fileBufSize);
+		cl::Program::Binaries bins{{fileBuf, fileBufSize}};
+
+		devices.resize(1);
+		cl::Program program(context, devices, bins, NULL, NULL);
+		cl::Kernel krnl_vector_add(program, "vadd", NULL);
+
+		cl::Buffer buffer_in1(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, 
+			DATA_SIZE*sizeof(int), source_in1.data(), NULL);
+		cl::Buffer buffer_in2(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY,
+			DATA_SIZE*sizeof(int), source_in2.data(), NULL);
+		cl::Buffer buffer_output(context,CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY, 
+			DATA_SIZE*sizeof(int), source_hw_results.data(), NULL);
+
+		krnl_vector_add.setArg(0, buffer_in1);
+		krnl_vector_add.setArg(1, buffer_in2);
+		krnl_vector_add.setArg(2, buffer_output);
+		krnl_vector_add.setArg(3, DATA_SIZE);
+
+		q.enqueueMigrateMemObjects({buffer_in1, buffer_in2}, 0);
+
+		q.enqueueTask(krnl_vector_add);
+
+		q.enqueueMigrateMemObjects({buffer_output}, CL_MIGRATE_MEM_OBJECT_HOST);
+		q.finish();
+		delete[] fileBuf;
+    
+		...	
+		\end{lstlisting}
+		
+		Da es sich bei \textit{xcl2.hpp} um einen C++ Header handelt, sollte auch die OpenCL C++ Wrapper \Gls{API} verwendet werden. Besonders sind an diesem Programm lediglich zwei Dinge. Die Funktion \li`xcl::get_xil_devices` sucht mit den üblichen Abfragen nach einem Gerät, das "Xilinx" im Herstellernamen trägt. Die Funktion \li`xcl::read_binary_file` liest eine ausführbare Datei ein. Bei dieser handelt es sich um ein cross-platform kompiliertes Binary, dass für eine ganz bestimmte FPGA Karte erzeugt wurde.
+		
+		Die Funktion \li`enqueueTask` führt ein \Gls{Kernel} mit der \Gls{Workgroup} Größe (1,1,1) aus.
+		
+		\section{Kernels in OpenCL und C/C++}
+		\Gls{Kernel} lassen sich in C, C++, OpenCL oder HDL schreiben. Bei einer HDL handelt es sich nicht um eine Programmiersprache und stellt damit ein völlig anderes Konzept dar. Da dieses Thema sehr komplex ist, soll hier nicht darauf eingegangen werden. Die einfachste Möglichkeit stellt ein Programm in C/C++ dar. Es handelt sich hierbei um sogenannte High-Level Synthesis (HLS), also das Erzeugen von HDL aus einer höheren Programmiersprache.
+		\begin{lstlisting}[caption=FPGA: C Kernel]	
+		#define BUFFER_SIZE 1024
+		#define DATA_SIZE 4096
+		const unsigned int c_len = DATA_SIZE / BUFFER_SIZE;
+		const unsigned int c_size = BUFFER_SIZE;
+		extern "C" {
+		void vadd(const int *in1, const int *in2, int *out_r, const int size)
+		{
+			#pragma HLS INTERFACE m_axi port = in1 offset = slave bundle = gmem
+			#pragma HLS INTERFACE m_axi port = in2 offset = slave bundle = gmem
+			#pragma HLS INTERFACE m_axi port = out_r offset = slave bundle = gmem
+			#pragma HLS INTERFACE s_axilite port = in1 bundle = control
+			#pragma HLS INTERFACE s_axilite port = in2 bundle = control
+			#pragma HLS INTERFACE s_axilite port = out_r bundle = control
+			#pragma HLS INTERFACE s_axilite port = size bundle = control
+			#pragma HLS INTERFACE s_axilite port = return bundle = control
+
+			int v1_buffer[BUFFER_SIZE];
+			int v2_buffer[BUFFER_SIZE];
+			int vout_buffer[BUFFER_SIZE];
+
+			for (int i = 0; i < size; i += BUFFER_SIZE) 
+			{
+			#pragma HLS LOOP_TRIPCOUNT min=c_len max=c_len
+				int chunk_size = BUFFER_SIZE;
+				if((i + BUFFER_SIZE) > size) chunk_size = size - i;
+				
+				read1: for(int j = 0; j < chunk_size; j++) 
+				{
+				#pragma HLS LOOP_TRIPCOUNT min=c_size max=c_size
+				#pragma HLS PIPELINE II=1
+					v1_buffer[j] = in1[i + j];
+				}
+
+
+
+				read2: for(int j = 0; j < chunk_size; j++) 
+				{
+				#pragma HLS LOOP_TRIPCOUNT min=c_size max=c_size
+				#pragma HLS PIPELINE II=1
+					v2_buffer[j] = in2[i + j];
+				}
+
+				vadd: for(int j = 0; j < chunk_size; j++) 
+				{
+				#pragma HLS LOOP_TRIPCOUNT min=c_size max=c_size
+				#pragma HLS PIPELINE II=1
+					vout_buffer[j] = v1_buffer[j] + v2_buffer[j];
+				}
+
+				write: for(int j = 0; j < chunk_size; j++) 
+				{
+				#pragma HLS LOOP_TRIPCOUNT min=c_size max=c_size
+				#pragma HLS PIPELINE II=1
+					out_r[i + j] = vout_buffer[j];
+				}
+			}
+		}}
+		\end{lstlisting}		
+		
+		Der offensichtliche Unterschied besteht in den Pragma Anweisungen. Da dieses Programm rein seriell abläuft, muss man mittels Pragmas den Compiler anweisen, die Schleifen auszurollen und damit parallele Hardware zu erzeugen. Die verschiedenen Pragmas können im SdAccel Pragma Guide \autocite{pragma} nachgelesen werden. Der Compiler erzeugt hier also eine Logik für jedes Vektorelement. Diese Schleifen lassen sich benennen, um im Synthesereport aufgelistet zu werden. Dazu muss man jedoch das kostenlose auf Eclipse basierende SdAccel Tool von Xilinx nutzen (Nachfolger 2020: Scout). Die Handhabung dessen wird im Handbuch erklärt. \autocite{sdaccel}
+		
+		Um unnötige Zugriffe zu vermeiden, teilt man die Daten in Portionen von vier Kilobyte (page size) ein. Lese-, Rechen- und Schreiboperationen werden getrennt audsgeführt und in Buffer geschrieben. Dieses Verfahren nennt sich Burst Access.
+		
+		Dieses \Gls{Kernel} lässt sich fast analog in OpenCL implementieren.\\
+		\begin{lstlisting}[caption=FPGA: OpenCL Kernel]
+		#define BUFFER_SIZE 1024
+		#define DATA_SIZE 4096
+
+		__constant uint c_len = DATA_SIZE/BUFFER_SIZE;
+		__constant uint c_size = BUFFER_SIZE;
+
+		kernel __attribute__((reqd_work_group_size(1, 1, 1)))
+		void vadd(__global const int *in1, __global const int *in2, 
+			__global int *out_r, const int size)
+		{
+			int v1_buffer[BUFFER_SIZE];
+			int v2_buffer[BUFFER_SIZE];
+    
+			__attribute__((xcl_loop_tripcount(c_len, c_len)))
+			for (int i = 0 ; i < size; i += BUFFER_SIZE) 
+			{
+				int chunk_size = BUFFER_SIZE;
+        
+				if(i + chunk_size > size) chunk_size = size - i;
+
+				__attribute__((xcl_loop_tripcount(c_size, c_size)))
+				__attribute__((xcl_pipeline_loop(1)))
+				read1: for(int j = 0 ; j < chunk_size; ++j) v1_buffer[j] = a[i+j];
+
+				__attribute__((xcl_loop_tripcount(c_size, c_size)))
+				__attribute__((xcl_pipeline_loop(1)))
+				read2: for (int j = 0 ; j < chunk_size; ++j) v2_buffer[j] = b[i+j];
+
+				__attribute__((xcl_loop_tripcount(c_size, c_size)))
+				__attribute__((xcl_pipeline_loop(1)))
+				vadd: for (int j = 0 ; j < chunk_size; ++j) 
+					out_r[i+j] = v1_buffer[j] + v2_buffer[j];
+			}
+		}
+		\end{lstlisting}
+
+		\section{Xilinx Compiler}
+		Während das Host Programm wie gewohnt mit einem beliebigen C oder C++ Compiler übersetzt wird, muss das FPGA Binary mit einem Compiler von Xilinx erstellt werden. Dieser heißt \li`v++` und ist Teil der \textit{Vitis} Platform. Der Compiler übersetzt zunächst den Device Code unter Angabe der \Gls{Kernel}funktion und der Karte in eine Objektdatei mit Dateiendung \li`.xo`. Danach erfolgt das Linken und Erstellen einer ausführbaren Datei mit Dateiendung \li`.xclbin`.
+		\begin{center}
+			\li`v++ -c --target ... --kernel vadd --platform xilinx_u250_qdma_201910_1 vadd.cpp -o vadd.xo`
+			
+			\li`v++ -l --platform xilinx_u250_qdma_201910_1 vadd.xo -o vadd.xclbin --target ...`
+		\end{center}
+		Es gibt drei mögliche Angaben für \li`--target`. 
+		
+		\textbf{sw{\_}emu} bezeichnet die Softwareemulation. Dabei wird mit einem gewöhnlichen Compiler gewöhnlicher Host Code erzeugt um die funktionale Richtigkeit des Programms zu testen.
+		
+		\textbf{hw{\_}emu} bezeichnet die Hardwareemulation. Dabei wird mit einem gewöhnlichen Compiler die Hardwareerzeugung lediglich in Software auf dem Host simuliert. Die Hardwareemulation ist ein erster Indikator für die Funktionsfähigkeit des Programms in Hardware.
+		
+		\textbf{hw} bezeichnet das tatsächliche Programm für das FPGA. Es sollte erst nach der Hardwareemulation erzeugt werden, da das Kompilieren extrem lange dauert. Die Vektoraddition beispielsweise benötigte mit einem Prozessor mit 24 Kernen fast zwei Stunden zum Erzeugen. Sollte die Hardwareemulation bereits fehlgeschlagen sein, ist der Versuch ein echtes Programm zu erzeugen Zeitvergeudung.
+		
+		Weitere Compileroptionen lassen sich im Handbuch der \textit{Xilinx Commandline Tools} nachlesen. \autocite{xocc} Dieses ist noch für den alten xocc-Compiler verfasst, sollte aber analog für v++ gelten.
+
+
+		\section{Xilinx Alveo und Librarys}
+		Bei den verwendeten Boards Alveo U200, U250, U280 und U50 handelt es sich derzeit um die fortschrittlichsten ihrer Art. Mehr Informationen lassen sich im Datenblatt finden. \autocite{alveo}
+		
+		Aufgrund von sehr speziellen Eigenschaften, beispielsweise ungewöhnliche Integer Arithmetik, stellt Xilinx für verschiedene Bereiche eigene Bibliotheken bzw. Reimplementierungen bekannter Librarys zur Verfügung. Eine genauere Beschreibung befindet sich in Kapitel 2 im Handbuch der Xilinx HLS. \autocite{hls}
+		
+		Weitere HPC Librarys wurden für diese Art von Boards ertellt. Siehe unter Anderem:
+		\begin{itemize}
+			\item Xilinx OpenCV \\
+			\href{https://www.xilinx.com/support/documentation/sw_manuals/xilinx2019_1/ug1233-xilinx-opencv-user-guide.pdf}{https://www.xilinx.com/support/documentation/ \\ sw{\_}manuals/xilinx2019{\_}1/ug1233-xilinx-opencv-user-guide.pdf}
+			
+			\item Machine Learning Suite \\
+			\href{https://www.xilinx.com/products/acceleration-solutions/xilinx-machine-learning-suite.html}{https://www.xilinx.com/products/acceleration-solutions/ \\ xilinx-machine-learning-suite.html}
+			
+			\item BlackLynx High Speed Search \\
+			\href{https://www.xilinx.com/products/acceleration-solutions/1-zzrgcy.html}{https://www.xilinx.com/products/acceleration-solutions/1-zzrgcy.html}
+			
+			\item Falcon Accelerated Genomics Pipelines \\
+			\href{https://www.xilinx.com/products/acceleration-solutions/1-zzroc0.html}{https://www.xilinx.com/products/acceleration-solutions/1-zzroc0.html}
+			
+			\item Maxeler Real Time Risk \\
+			\href{https://www.xilinx.com/products/acceleration-solutions/1-ykfnpg.html}{https://www.xilinx.com/products/acceleration-solutions/1-ykfnpg.html}
+		\end{itemize}

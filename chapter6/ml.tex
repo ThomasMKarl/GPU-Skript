@@ -1,0 +1,231 @@
+	\section{Machine Learning}
+	Aus Wikipedia \autocite{wikiML}:
+	
+	Maschinelles Lernen ist ein Oberbegriff für die „künstliche“ Generierung von Wissen aus Erfahrung: Ein künstliches System lernt aus Beispielen und kann diese nach Beendigung der Lernphase verallgemeinern. Dazu bauen Algorithmen beim maschinellen Lernen ein statistisches Modell auf, das auf Trainingsdaten beruht. Das heißt, es werden nicht einfach die Beispiele auswendig gelernt, sondern es „erkennt“ Muster und Gesetzmäßigkeiten in den Lerndaten. So kann das System auch unbekannte Daten beurteilen [...].
+	
+	Hauptanwendungsgebiete sind u.A. Klassifizierung, Filterung, Bild- und Spracherkennung, Regression oder Datenanalyse und Datenerzeugung.
+	Man kann diese Algorithmen in drei Kategorien einteilen:
+	
+	\begin{itemize}
+		\item \textbf{supervised Learning:} Eingabedaten durchlaufen ein Modell. Die Ausgabedaten werden mit einer Vorgabe verglichen. Aus der Differenz zwischen Ist- und Soll-Zustand kann ein Verlust ausgerechnet werden. Durch statistische Minimierung dieses Verlustes werden die Parameter des Modells angepasst. Falls es sich bei dieser Minimierung um eine auf Stochastik beruhender Methode handelt, spricht man von stochastischem Lernen.
+		\newpage
+		\item \textbf{reinforcement Learning:} Kann auch als supervised Learning angesehen werden. Statt einer Klassifikation der Ergebnisse in "richtig" und "falsch" wird dem Algorithmus hier eine Belohnung vorgegeben. Diese Methode synergiert am besten mit dem Lernverhalten des Menschen.
+		\item \textbf{unsupervised Learning:} Der Algorithmus versucht selbständig zu den Eingangsdaten basierend auf den Charakteristika der Signale ein Modell zu erstellen. Die Anwendungsmöglichkeiten sind hier natürlich vergleichsweise begrenzt. Ein bekanntes Beispiel ist der EM-Algorithmus.
+	\end{itemize}
+	
+	Zu den klassischen Algorithmen zählen z.B. Support Vector Machines (SVM), Clustering, Random Forest, Empirical Mode Decomposition (EMD), Principal Component Analysis (PCA), Independent Component Analysis (ICA), Single Spectrum Analysis (SSA), Informationstheorie und viele mehr. Diese beruhen im Wesentlichen auf einfacher Statistik in Kombination mit Methoden der linearen Algebra.  SVMs beispielsweise berechnen Trennebenen zwischen linear separierbaren Punkten im $n$-dimensinalem Raum. Bei einem Random Forest handelt es sich im Grunde um eine Mittelung über verschiedene Entscheidungsbäume.
+	
+	Allerdings erfreuen sich in modernen Anwendungen sogenannte neuronale Netze immer größerer Beliebtheit. Der folgende Abschnitt konzentriert sich lediglich auf supervised Learning mit neuronalen Netzen \textit{off-line}, also Lernen, bei dem die Daten des trainierten Modells zu jedem Zeitpunkt erhalten bleiben.
+	
+		\subsection{neuronale Netze}
+		Die Idee, ein menschliches Gehirn mit Computern nachzubauen, ist nicht neu und vermutlich so alt wie die Idee eines Computers. Die Anfänge lassen sich bereits auf die 40er Jahre zurückführen. Die ersten Theorien wurden in den 60ern entwickelt. Allerdings wurde die Entwicklung erst in den letzten Jahren von Erfolg gekrönt. Dies hat im Wesentlichen zwei Gründe. Der erste Grund ist \textit{Big Data}: Durch den Aufstieg des Internets wurden internationale Konzerne wie Facebook oder Google zu Sammelbecken von Daten ungeahnten Ausmaßes. Wie bereits erwähnt ist eine gute Datengrundlage wichtig für das Training eines Modells. Diese Konzerne sind natürlich aus kommerziellen Gründen daran interessiert, Forschung in diesem Bereich zu finanzieren.
+		
+		Der andere Grund beruht auf der Technik. Bei einem neuronalen Netz handelt es sich um ein SIMD Problem. Durch das Stagnieren der \Gls{Performance} von CPUs (siehe \ref{2:hard}) und der Aufwändigkeit und Kosten von Rechenclustern, die für SIMD Probleme notwendig wären, sind CPUs für das Trainieren von Netzen kaum geeignet. Der Durchbruch von General-Purpose GPUs, sowohl auf hardware- als auch auch auf software-technischer Ebene, erlaubt es allerdings zu einem erschwinglichen Preis neuronale Netze auch bei kleinen Projekten mit kleinem Budget einzusetzen.
+		
+		Neuronale Netze bestehen typischerweise aus einer Ausgabeschicht ("Output Layer") und mehreren verborgenen Schichten ("Hidden Layer"), die die Eingangssignale mit der Ausgabeschicht verbinden. Diese Schichten bestehen aus einer Vielzahl von Neuronen, die Eingangassignale mit verschiedenen Gewichten verrechnen. Eine logistische Funktion als Aktivierung entscheidet, ob der so berechnete Output an die nächste Schicht weitergegeben wird. Im Falle einer einzigen Schicht spricht man von einschichtigen Netzen (Single-Layer). 
+		
+		Man unterscheidet verschiedene Typen:
+		
+		\begin{itemize}
+			\item \textbf{Single-Layer Perzeptron:} Ein einzelnes Neuron.
+			\item \textbf{Multi-Layer Perzeptron:} Mehrere Perzeptronen hintereinander.
+			\item \textbf{Fully-Connected Layer:} Jedes Neuron dieser Schicht gibt seinen Output an jedes Neuron der folgenden Schicht weiter.
+			\item \textbf{Rekurrente Schicht:} Neuronen geben den Output auch an sich selbst weiter.
+			\item \textbf{Convolutional Neural Network (CNN):} Vor der Klassifizierung durchlaufen die Daten eine Faltung, also Neuronen, die nur einen Teil des Inputs erhalten und auch nur einen Teil weitergeben.
+			\item \textbf{Deep-Belief Network:} Eine Kombination von Boltzmann Maschinen.
+			\item \textbf{Boltzmann Maschine:} Ein Stochastisches rekurrentes neuronales Netz zum Erlernen einer Wahrscheinlichkeitsverteilung.
+			
+			...
+		\end{itemize}
+		
+		Wichtigste moderne Anwendung ist wohl das CNN. Da Fully-Connected Netzwerke oft zu aufwändig sind, z.B. bei der Verarbeitung von 2d Daten wie Bildern, wird zunächst nur ein Teil des Inputs an ein Neuron weitergegeben. Dies kann z.B. ein quadratischer Ausschnitt aus einem Bild sein. Nach sogenanntem Pooling, dem Zusammenfassen mehrerer Neuronen (typischerweise $2\times 2$) zu einer Aktivierung, wird der entstandene Output mit Fully-Connected Layern klassifiziert. Im mathematischen Sinne handelt es sich bei diesem Vorgang um eine Faltung. Dies motiviert den Begriff "convolutional", also "faltend".
+		
+		Man betrachte ein Fully-Connected Network mit zwei Schichten aus drei und zwei Neuronen. Sei ein Input Signal $\vec{x} = (x_1, x_2, x_3)^T$ gegeben. Dann wird am ersten Neuron jeder dieser Inputs mit einem Gewicht multipliziert und die Summe $\Sigma = w^1_1x_1 + w^1_2x_2 + w^1_3x_3$ an eine Aktivierungsfunktion weitergeleitet. Für das zweite und dritte Neuron findet dies genauso statt. Dieser Vorgang entspricht einer Matrixmultiplikation
+		\begin{equation}
+		\Sigma = (\Sigma_1, \Sigma_2, \Sigma_3)^T = W\vec{x}		
+		\end{equation}
+		wobei die Einträge von $W$ die Gewichte $W_{ij} = w^i_j$ sind. Nach dieser Multiplikation mit einer $3\times 3$ Matrix werden die Output Signale mit der Aktivierung verrechnet und an die nächste Schicht weitergegeben (feed-forward). Da es sich bei dieser nur um zwei Neuronen handelt, wird das dreikomponentige Signal mit einer $2\times 3$ Multiplikation auf ein zweikomponentiges abgebildet. Dieses Signal wird nun mit dem Sollzustand verglichen. Aus der Differenz wird ein Verlust berechnet (mit einer Loss-Function). Auf Basis dessen werden die Gewichte mit einem Minimierungsverfahren rückwärts angepasst, um diesen Zustand besser abzubilden (Backpropagation). Dieser Vorgang wird iterativ wiederholt (Epochen), bis eine bestimmte Akkuratesse erreicht ist (Verhältnis richtiger Klassifikationen zur Gesamtzahl). Inwiefern diese Genauigkeit auf dem Trainingsset ein Indikator für das tatsächliche Verhalten ist, hängt von der Korrelation der Daten ab und muss daher mit einem Testset verifiziert werden. Test- und Trainingsset sollten ein repräsentativer Teil der Ausgangsdaten sein und keine Überschneidung aufweisen. Wenn das Modell sich zu gut auf die Trainingsdaten angepasst hat und eine deutlich schlechtere Genauigkeit auf den Testdaten liefert, so spricht man von Overfitting. CNNs gelten als besonders resistent gegen diesen Fehler.
+		
+		Verbindet man im genannten Beispiel nur einen Input mit einem Neuron, so ergibt sich eine mathematische Faltung und die Gewichtsmatrix $W$ reduziert sich auf $\text{diag}(w^1_1, w^2_2, w^3_3)$. Bei dieser Matrix handelt es sich um eine sparse Matrix (und in diesem Spezialfall sogar um eine Band- und Diagonalmatrix).
+		
+		\subsection{cuDNN}
+		\autocite{cudnnDoc}Bei cuDNN handelt es sich um die von Nvidia zur Verfügung gestellte GPU beschleunigte Implementierung von DNN Primitives. Dies sind die folgenden Routinen:
+		\begin{itemize}
+    		\item Convolution (Forward und Backward), cross-Korrelation
+    		\item Pooling (Forward und Backward)
+    		\item Softmax (Forward und Backward)
+    		\item Neuron Aktivierungen (Forward und Backward):
+			\begin{itemize}			        
+        		\item Rectified linear (ReLU)
+        		\item Sigmoid
+        		\item Tangens Hyperbolicus (TANH)
+        	\end{itemize}
+    		\item Tensor Transformationsfunktionen
+    		\item Local Response- und batch-Normalisierung, Locally-Connected Network (Forward und Backward)
+    	\end{itemize}
+    	
+    	Das folgende Beispiel zeigt eine einzelne Epoche eines CNN.
+    	\begin{lstlisting}[caption=cuDNN: Tensor-Descriptors]    	
+		cv::Mat image = ...;
+    	
+		cudnnHandle_t cudnn;
+		cudnnCreate(&cudnn);
+
+		cudnnTensorDescriptor_t input_descriptor;
+		cudnnCreateTensorDescriptor(&input_descriptor);
+		cudnnSetTensor4dDescriptor(input_descriptor, CUDNN_TENSOR_NHWC, 
+			CUDNN_DATA_FLOAT, 1, 3, image.rows, image.cols);
+
+		cudnnTensorDescriptor_t output_descriptor;
+		cudnnCreateTensorDescriptor(&output_descriptor));
+		cudnnSetTensor4dDescriptor(output_descriptor,
+			CUDNN_TENSOR_NHWC, CUDNN_DATA_FLOAT, 1, 3, image.rows, image.cols);
+
+		cudnnFilterDescriptor_t kernel_descriptor;
+		cudnnCreateFilterDescriptor(&kernel_descriptor);
+		cudnnSetFilter4dDescriptor(kernel_descriptor,
+			CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, 3, 3, 3, 3);
+
+		cudnnConvolutionDescriptor_t convolution_descriptor;
+		cudnnCreateConvolutionDescriptor(&convolution_descriptor);
+		cudnnSetConvolution2dDescriptor(convolution_descriptor, 1, 1, 1, 1,
+			1, 1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT);
+		\end{lstlisting}
+
+		\begin{lstlisting}[caption=cuDNN: Konvolutions-Algorithmus]
+		cudnnConvolutionFwdAlgo_t convolution_algorithm;
+		cudnnGetConvolutionForwardAlgorithm(cudnn, input_descriptor, 
+			kernel_descriptor, convolution_descriptor, 
+			output_descriptor, CUDNN_CONVOLUTION_FWD_PREFER_FASTEST, 0, 
+			&convolution_algorithm);
+
+		size_t workspace_bytes = 0;
+		cudnnGetConvolutionForwardWorkspaceSize(cudnn, input_descriptor, 
+			kernel_descriptor, convolution_descriptor,
+			output_descriptor, convolution_algorithm, &workspace_bytes);
+
+		void* d_workspace{nullptr};
+		cudaMalloc(&d_workspace, workspace_bytes);
+		\end{lstlisting}
+
+		\begin{lstlisting}[caption=cuDNN: Kernel]
+		int image_bytes = 1 * 3 * image.rows * image.cols * sizeof(float);
+		float* d_input{nullptr};
+		cudaMalloc(&d_input, image_bytes);
+		cudaMemcpy(d_input, image.ptr<float>(0), 
+			image_bytes, cudaMemcpyHostToDevice);
+
+		float* d_output{nullptr};
+		cudaMalloc(&d_output, image_bytes);
+		cudaMemset(d_output, 0, image_bytes);
+
+		const float kernel_template[3][3] = {
+			{1,  1, 1},
+			{1, -8, 1},
+			{1,  1, 1}
+		};
+
+		float h_kernel[3][3][3][3];
+		for(int kernel = 0; kernel < 3; ++kernel)
+		{
+			for (int channel = 0; channel < 3; ++channel)
+			{
+				for (int row = 0; row < 3; ++row) 
+				{
+					for (int column = 0; column < 3; ++column)
+					{
+					h_kernel[kernel][channel][row][column] 
+						= kernel_template[row][column];
+					}
+				}
+			}
+		}
+
+		float* d_kernel{nullptr};
+		cudaMalloc(&d_kernel, sizeof(h_kernel));
+		cudaMemcpy(d_kernel, h_kernel, sizeof(h_kernel), cudaMemcpyHostToDevice);
+    	\end{lstlisting}
+    	
+    	\begin{lstlisting}[caption=cuDNN: feed forward]
+		const float alpha = 1, beta = 0;
+		cudnnConvolutionForward(cudnn, &alpha, input_descriptor, d_input,
+			kernel_descriptor,d_kernel, convolution_descriptor,convolution_algorithm,
+			d_workspace, workspace_bytes, &beta,output_descriptor, d_output);
+
+		float* h_output = new float[image_bytes];
+		cudaMemcpy(h_output, d_output, image_bytes, cudaMemcpyDeviceToHost);
+
+		...
+
+		delete[] h_output;
+		cudaFree(d_kernel);
+		cudaFree(d_input);
+		cudaFree(d_output);
+		cudaFree(d_workspace);
+
+		cudnnDestroyTensorDescriptor(input_descriptor);
+		cudnnDestroyTensorDescriptor(output_descriptor);
+		cudnnDestroyFilterDescriptor(kernel_descriptor);
+		cudnnDestroyConvolutionDescriptor(convolution_descriptor);
+
+		cudnnDestroy(cudnn);
+    	\end{lstlisting}
+
+		\subsection{Exkurs: Python Tensorflow}
+		\autocite{tfDoc}
+		
+		\url{https://www.tensorflow.org/overview/}
+		
+		\autocite{kerasDoc}
+		
+		\begin{lstlisting}[caption=Keras/Tensorflow Beispiel]
+		import tensorflow as tf
+		mnist = tf.keras.datasets.mnist
+
+		(x_train, y_train),(x_test, y_test) = mnist.load_data()
+		x_train, x_test = x_train / 255.0, x_test / 255.0
+
+		model = tf.keras.models.Sequential([
+			tf.keras.layers.Flatten(input_shape=(28, 28)),
+			tf.keras.layers.Dense(512, activation=tf.nn.relu),
+			tf.keras.layers.Dropout(0.2),
+			tf.keras.layers.Dense(10, activation=tf.nn.softmax)
+		])
+		model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', 
+			metrics=['accuracy'])
+
+		model.fit(x_train, y_train, epochs=5)
+		model.evaluate(x_test, y_test)
+		\end{lstlisting}	
+		
+		\subsection{TensorRT}
+		\autocite{trtDoc}
+		
+		\autocite{trtSmpl}
+		
+		\autocite{tftrtDoc}
+		
+		\begin{lstlisting}[caption=Tensorflow Modell einfrieren]
+		from keras.models import load_model
+		import keras.backend as K
+		from tensorflow.python.framework import graph_io
+		from tensorflow.python.tools import freeze_graph
+		from tensorflow.core.protobuf import saver_pb2
+		from tenrflow.python.training import saver as saver_lib
+
+		def convert_keras_to_pb(keras_model, out_names, models_dir, model_filename):
+			model = load_model(keras_model)
+			K.set_learning_phase(0)
+			sess = K.get_session()
+			saver = saver_lib.Saver(write_version=saver_pb2.SaverDef.V2)
+			
+			checkpoint_path = saver.save(sess, 'saved_ckpt', 
+				global_step=0, latest_filename='checkpoint_state')
+				
+			graph_io.write_graph(sess.graph, '.', 'tmp.pb')
+			
+			freeze_graph.freeze_graph('./tmp.pb', '',
+				False, checkpoint_path, out_names,
+				"save/restore_all", "save/Const:0",
+				models_dir+model_filename, False, "")
+		\end{lstlisting}
