@@ -1,5 +1,5 @@
 	\chapter{Einf\"uhrung in OpenCL}
-	\textit{Open Computing Language} (OpenCL) ist eine freie open-source Programmierschnittstelle für paralleles Rechnen, die Von Apple im Jahr 2009 entwickelt wurde. Heute liegt diese in Version 2.2 vor und wird von der Khronos Gruppe entwickelt, der sich mittlerweile über 200 Firmen angeschlossen haben. Das Ziel hinter dem Projekt ist es, eine low-level Programmiersprache und Schnittstelle zu schaffen, mit denen sich maximal inhomogene Parallelrechner (CPUs, GPUs, Grafikchips, FPGAs, Beschleuniger, ...) programmieren lassen und dabei Plattformunabhängigkeit gewährleisten. Ein Gerät benötigt dafür eine Hardwareimplementierung und der Hersteller muss eine OpenCL Implementierung in Software bereitstellen (z.B. AMD, Intel, ...). Im Nvidia Toolkit ist eine OpenCL Installation enthalten, in Hardware aber nur für Version 1.2 implementiert. C- und C++-\Glspl{API} sind gewöhnliche Librarys, die unter Linux über die Paketquellen installiert werden können.
+	\textit{Open Computing Language} (OpenCL) ist eine freie open-source Programmierschnittstelle für paralleles Rechnen, die von Apple im Jahr 2009 entwickelt wurde. Heute liegt diese in Version 2.2 vor und wird von der Khronos Gruppe entwickelt, der sich mittlerweile über 200 Firmen angeschlossen haben. Das Ziel hinter dem Projekt ist es, eine low-level Programmiersprache und Schnittstelle zu schaffen, mit denen sich maximal inhomogene Parallelrechner (CPUs, GPUs, Grafikchips, FPGAs, Beschleuniger, ...) programmieren lassen und dabei Plattformunabhängigkeit gewährleisten. Ein Gerät benötigt dafür eine Hardwareimplementierung und der Hersteller muss eine OpenCL Implementierung in Software bereitstellen (z.B. AMD, Intel, ...). Im Nvidia Toolkit ist eine OpenCL Installation enthalten, in Hardware aber nur für Version 1.2 implementiert. C- und C++-\Glspl{API} sind gewöhnliche Librarys, die unter Linux über die Paketquellen installiert werden können.
 	
 	Die Khronos Gruppe entwickelt ebenfalls die Grafikbibliothek OpenGL und Nachfolger Vulkan, für die ähnliche Prinzipien gelten. 
 	 
@@ -103,8 +103,8 @@
 		\end{itemize}
 		
 			\subsection{Platformen}
-			Da mehrere Verschiedene Implementierungen von OpenCL existieren, muss zunächst eine \Gls{Platform} ausgewählt werden. Die Khronos Gruppe aktualisiert stetig die Liste aller Platformen: \url{https://www.khronos.org/conformance/adopters/conformant-products/opencl}
-			\begin{lstlisting}[caption=~Platformabfrage]
+			Da mehrere verschiedene Implementierungen von OpenCL existieren, muss zunächst eine \Gls{Platform} ausgewählt werden. Die Khronos Gruppe aktualisiert stetig die Liste aller Platformen: \url{https://www.khronos.org/conformance/adopters/conformant-products/opencl}
+			\begin{lstlisting}[caption=Platformabfrage]
 			cl_platform_id platform_id = NULL;
 			uint ret_num_platforms;
 			clGetPlatformIDs(1, &platform_id, &ret_num_platforms);
@@ -118,7 +118,7 @@
 							
 			\subsection{Devices}
 			Jede \Gls{Platform} stellt OpenCL für ein oder auch mehrere Geräte zur Verfügung. Im nächsten Schritt müssen also die entsprechenden Devices den gefundenen \Glspl{Platform} zugeordnet werden.		
-			\begin{lstlisting}[caption=~Deviceabfrage]
+			\begin{lstlisting}[caption=Deviceabfrage]
 			cl_device_id device_id = NULL;	
 			uint ret_num_devices;
 			clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_DEFAULT, 1, 
@@ -137,7 +137,7 @@
 				
 			\subsection{Kontexte}
 			Ein \Gls{Kontext} ist ein \Gls{Handle} für das OpenCL Programm. Dieser beinhaltet Speicherobjekte, Programme und Command Queues. Folglich müssen diese also einem neu erstellten \Gls{Kontext} zugeordnet werden. Abbildung \ref{4:class} zeigt die Zusammenhänge sämtlicher OpenCL Klassen \autocite{oclRC} basierend auf der Unified Modelling Language (UML). \autocite{uml}
-			\begin{lstlisting}[caption=~Kontexte]
+			\begin{lstlisting}[caption=Kontexte]
 			cl_int ret;
 			cl_context context = clCreateContext(NULL, 1, &device_id, 
 				NULL, NULL, &ret);	
@@ -153,7 +153,7 @@
 				
 			\subsection{Programme}
 			Als nächstes muss das OpenCL Programm als String gelesen, zur Laufzeit kompiliert und dem Kontext hinzugefügt werden. 
-			\begin{lstlisting}[caption=~OpenCL Programm]
+			\begin{lstlisting}[caption=OpenCL Programm]
 			FILE *fp;
 			char *source_str;
 			size_t source_size;
@@ -181,7 +181,7 @@
 			Da an dieser Stelle erst das eigentliche OpenCL Programm kompiliert wird, muss nun der Output des OpenCL Compilers abgefragt werden.
 			
 			\newpage			
-			\begin{lstlisting}[caption=~Fehlerabfrage OpenCL Compiler]
+			\begin{lstlisting}[caption=Fehlerabfrage OpenCL Compiler]
 			if(ret != 0){
 				size_t sz; char * bf;
 
@@ -226,7 +226,7 @@
 			
 			\subsection{Kernel}
 			Danach kann das eigentliche \Gls{Kernel} erstellt werden. Dazu muss der Name der Funktion als String übergeben werden. Das Programmieren der Kernels funktioniert ähnlich wie in CUDA.			
-			\begin{lstlisting}[caption=~Kerneldefinition]
+			\begin{lstlisting}[caption=Kerneldefinition]
 			__kernel void vecadd(__constant float *x, __constant float* y, __global float *res, const int size)
 			{
   				int i = get_global_id(0);
@@ -240,7 +240,7 @@
 			Eine zusätlich definierte Funktion kann vom \Gls{Kernel}, also vom Device aus, wie aus C gewohnt ausgeführt werden. 
 			
 			Für das \Gls{Kernel} müssen wie gewohnt Buffer erstellt und Speicher kopiert werden. Zudem müssen die Kernelargumente explizit gesetzt werden.
-			\begin{lstlisting}[caption=~Kernelaufruf]
+			\begin{lstlisting}[caption=Kernelaufruf]
 			cl_mem d_x  = clCreateBuffer(context, CL_MEM_READ_ONLY, 
 				size*sizeof(cl_float), NULL, &ret);
 			cl_mem d_y  = clCreateBuffer(context, CL_MEM_READ_ONLY, 
@@ -279,7 +279,7 @@
 			\subsection{Command Queues}
 			Statt \Glspl{Stream} existieren in OpenCL \Glspl{Command Queue}. Jede Speicheranweisung (Kopieren, Lesen) muss in eine \Gls{Command Queue} eingereiht werden. Zum Schluss wird die Warteschlange mit dem \Gls{Kernel} ausgeführt und erzeugt dabei ein Event. Das Lesen des Speichers erfolgt, sobald dieses Event stattgefunden hat. Am Ende wird der Speicher freigegeben.
 			
-		\begin{lstlisting}[caption=~Command Queues und Clean-Up]
+		\begin{lstlisting}[caption=Command Queues und Clean-Up]
 		const cl_queue_properties  props = ...; 
 		cl_command_queue command_queue = clCreateCommandQueueWithProperties(context, device_id, &props, &ret);
 		
@@ -355,7 +355,7 @@
 		
 		\section{Images}
 		Das Image Format ist eine Datenstruktur, die speziell auf Bilformate optimiert wurde.
-		\begin{lstlisting}[caption=~OpenCL Images]
+		\begin{lstlisting}[caption=OpenCL Images]
 		cl_mem clCreateImage(
 			cl_context context, 
 			cl_mem_flags flags,
@@ -376,7 +376,7 @@
 		
 		\section{C++ API}
 		Es existiert eine C++ Wrapper \Gls{API} \autocite{oclC++API}.  Das Beispiel der Vektoraddition lässt sich somit in C++ umschreiben:
-		\begin{lstlisting}[caption=~OpenCL C++ API]
+		\begin{lstlisting}[caption=OpenCL C++ API]
 		std::vector<cl::Platform> platformList;
 		cl::Platform::get(&platformList);
 		cl_context_properties cprops[] = {
@@ -442,7 +442,7 @@
 		Für OpenCL C++ wurde eine eigene Spezifikation angefertigt. \autocite{oclC++Spec}
 		
 		Folgendes Beispiel zeigt eine gewöhnliche Template-Klasse für Matrizen in C++:
-		\begin{lstlisting}[caption=~Matrix OpenCl C++]
+		\begin{lstlisting}[caption=Matrix OpenCl C++]
 		template<typename T, size_t Rows, size_t Columns>
 		class matrix 
 		{
@@ -459,7 +459,7 @@
 		\end{lstlisting}
 		
 		Die Addition zweier Matrizen lässt sich durch Überladen des $+$-Operators implementieren:
-		\begin{lstlisting}[caption=~Matrixaddition OpenCl C++]
+		\begin{lstlisting}[caption=Matrixaddition OpenCl C++]
 		template<typename T, size_t Rows, size_t Columns> 
 		matrix<T, Rows, Columns>operator+(
 		const matrix<T, Rows, Columns>& x, const matrix<T, Rows, Columns>& y) 
@@ -479,7 +479,7 @@
 		\end{lstlisting}
 		
 		Dieser C++ Code lässt sich dank OpenCl C++ exakt so im Devicecode implementieren. In einem \Gls{Kernel} kann dann dieser Code verwendet werden, um auf dem Device eine Matrixaddition auszuführen. Im folgenden Beispiel werden Matrizen addiert, indem jeweils ein \li`float4` zu einer $2\times 2$ Matrix umgewandelt, addiert und danach zurückkonvertiert wird:	
-		\begin{lstlisting}[caption=~OpenCl C++ Kernel]
+		\begin{lstlisting}[caption=OpenCl C++ Kernel]
 		matrix<float, 2, 2> float4_to_matrix(float4 *in) 
 		{
 			matrix<float, 2, 2> m;

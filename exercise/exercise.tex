@@ -130,6 +130,8 @@
 \begin{document}
 	\maketitle
 	
+	\tableofcontents
+	
 	\section{Bandbreitentest}
 	Kopieren Sie ein einzelnes Array der Größe $n$ in Bytes in den globalen Speicher. Messen Sie die Zeit $t$. Plotten Sie für verschiedene $n$ die Zeiten und fitten sie linear die Funktion $t(n) = \frac1bn+l$ an. Dabei ist $b$ die Bandbreite von PCIe (unidirektional) und $l$ die Latenz.
 	
@@ -158,7 +160,7 @@
 	\section{Reduktionen}
 	Schreiben Sie eine Reduktion in \textit{CUDA}. Nehmen Sie an, Sie haben ein sehr großes Array mit Werten und wollen beispielsweise die Summe aller Elemente parallel berechnen. Nehmen Sie an, dass die Größe $n$ des Arrays eine zweier-Potenz ist.
 		
-		\subsection{Schritt 1}
+		\subsection*{Schritt 1}
 		Vorgehensweise:
 		
 		\begin{itemize}
@@ -173,7 +175,7 @@
 			\includegraphics[scale=0.4]{1.png}		
 		\end{figure}
 		
-		\subsection{Schritt 2}
+		\subsection*{Schritt 2}
 		Vermeiden Sie Divergenz. Indizieren Sie die Threads so, dass alle beschäftigten Threads zusammenliegen.
 		
 		\begin{figure}[h]
@@ -182,7 +184,7 @@
 		\end{figure}
 		
 		\newpage
-		\subsection{Schritt 3}
+		\subsection*{Schritt 3}
 		Laden Sie die Daten in den shared Memory. Vermeiden Sie dabei Bankkonflikte. Jeder Thread muss Werte lesen, die möglichst weit auseinander liegen.
 		
 		\begin{figure}[h]
@@ -221,7 +223,7 @@
 	
 	mit $a > 0$ für eine Temperatur $u$ am Ort $\vec{x}$ zum Zeitpunkt $t$. Lösen Sie diese Gleichung im stationären ($\frac{\partial}{\partial{t}}u(\vec{x,t}) = 0$) und homogenen ($f(\vec{x},t) = 0$) Fall. Gleichungen dieser Gestalt bezeichnet man als Laplace-Gleichungen.
 	Definieren Sie ein quadratisches Gitter ($\vec{x}=(x,y)$) und belegen Sie die Randwerte mit festen, unveränderlichen Zahlen vor (Dirichlet-Randbedingung). Wählen Sie als Gitterkonstante in beide Raumrichtungen $h_x=h_y=1$. Dann lässt sich die Laplace-Gleichung numerisch nähern als,
-	\begin{equation}
+	\begin{equation}\label{heat}
 		\Laplace u(x,y) = u(x+1,y) + u(x,y+1) + u(x-1,y) + u(x,y-1) - 4u(x,y) = 0.
 	\end{equation}		 
 		
@@ -230,7 +232,7 @@
 	\begin{figure}[h]
 		\centering
 		\includegraphics[scale=0.5]{platte.png}
-		\caption{Wärmeleitende Platte mit konstanter Temperaturzufuhr am oberen Ende}
+		\caption{Wärmeleitende Platte mit konstanter Temperaturzufuhr am oberen Ende. In diesem Beispiel wurde die Gleichng (\ref{heat}) auf 50$\times$50 Punkten diskretisiert. Die Randbedingung war $u(x,0) = 1$ und $u(0,y) = u(50,y) = u(x,50) = 0$ konstant.}
 		\label{platte}		
 	\end{figure}
 	
@@ -248,10 +250,10 @@
 	mit $h$ als Schrittweite der Diskretisierung genähert werden. Belegen Sie dazu $u(x,t=0)$ beliebig vor und setzen Sie $u(0,t)=u(L,t)=0$ als Randbedingung fest für jeden Zeitschritt. Plotten Sie die Temperaturverteilung am Anfang und am Ende, um ihr Ergebnis zu überprüfen.	
 		
 	\section{THRUST}
-		\subsection*{Saxpy}
+		\subsection{Saxpy}
 		Schreiben Sie die \textit{Saxpy}-Operation mittels \textit{THRUST}-Funktoren, einmal mit Built-ins und einmal mit einem selbsgeschriebenen Funktor. Vergleichen Sie die Laufzeiten mit Aufgabe 2.
 		
-		\subsection*{Varianz}
+		\subsection{Varianz}
 		Schreiben Sie einen Funktor zur Berechnung der Varianz eines Vektors.		
 		
 		\subsection{Sortieren}
@@ -337,6 +339,7 @@
 			\subsection{Ising Modell}
 			\subsection{Replica Exchange}
 			\subsection{Nullstellen komplexer Polynome}
+			\subsection{G-DBSCAN}
 			\subsection{Random Forest}
 		
 \end{document}

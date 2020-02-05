@@ -23,11 +23,9 @@ force:
 
 skript.pdf: skript.tex $(CHAPTERS) $(DATA)
 	$(LATEX) skript.tex
-	$(MAKEGLOSSARIES) skript
-	$(BIBTEX) skript
-	$(LATEX) skript.tex
-	$(LATEX) skript.tex
+
 skript:
+	make skript.pdf
 	make skript.pdf
 
 skript.bbl:$(FORCEBIBER)

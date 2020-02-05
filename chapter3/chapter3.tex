@@ -13,7 +13,7 @@
 		Ein Hauptprogramm auf der CPU wird üblicherweise in C oder C++ geschrieben. Wahlweise lässt sich auch ein \Gls{API} in einer anderen Programmiersprache benutzen, z.B. pyCUDA in Python. Dieses Programm läuft wie gewohnt auf der CPU und wird fortan als Hostcode bezeichnet. Eine sehr rechenintensive Stelle im  Hostcode soll nun auf die GPU ausgelagert werden. Im gleichen Quellcode wird nun in der Programmiersprache CUDA ein sogenanntes \Gls{Kernel} definiert.
 			\subsection*{Kernels}
 			\Glspl{Kernel} sind sehr kleine Recheneinheiten, die parallel auf der GPU ausgeführt werden sollen. Der folgende Code zeigt ein \Gls{Kernel} zur Addition zweier Vektoren.
-	  		\begin{lstlisting}[caption=~Vektoraddition Kernel]
+	  		\begin{lstlisting}[caption=Vektoraddition Kernel]
 				__global__ void VecAdd(float* A, float* B, float* C, int N)
 				{
     				int i = threadIdx.x;
@@ -37,7 +37,7 @@
 			
 			Zur besseren Steuerung der \Glspl{Thread} teilt man diese in \Glspl{Block} ein\footnote{Meistens existieren technische Obergrenzen für die Zahl an Threads pro Block.}. Die Gesamtheit an \Glspl{Block}n bezeichnet man als \Gls{Grid}.
 			
-			\begin{lstlisting}[caption=~Kernelaufruf]		
+			\begin{lstlisting}[caption=Kernelaufruf]		
 				int main()
 				{
 					int threadsPerBlock = 32;
@@ -72,7 +72,7 @@
 		\newpage
 		
 		Um die Vektoraddition von oben durchzuführen, muss die CPU zunächst die Vektoren in den \Gls{global Memory} kopieren. Folgendes Beispiel illustriert dies:		
-		\begin{lstlisting}[caption=~Vektoraddition Host]
+		\begin{lstlisting}[caption=Vektoraddition Host]
 			uint N = 256;
 			uint size = N∗sizeof(float);
 			float ∗h_A = (float ∗)malloc(size);
@@ -106,7 +106,7 @@
 		Speicher auf dem Device wird mit \li`cudaFree` freigegeben.
 		
 		\Gls{shared Memory} wird mit dem Keyword \li`__shared__` deklariert. Der erste \Gls{Thread}, der in einem \Gls{Kernel} auf eine solche Instruktion trifft, legt eine Variable im \gls{shared Memory} der entsprechenden Größe an. Diese Variable teilen sich dann alle \Glspl{Thread} eines \Gls{Block}s. Existieren insgesamt $n$ \Glspl{Block}, so existieren auch $n$ verschiedene Variablen. In der statischen Variante muss die Größe des Arrays zur Compile-Zeit bekannt sein.
-		\begin{lstlisting}[caption=~shared Memory statisch]
+		\begin{lstlisting}[caption=shared Memory statisch]
 			__global__ void test()
 			{
   				__shared__ int s[64];
@@ -115,7 +115,7 @@
   		\end{lstlisting}
 
 		Im Gegensatz zur statischen Variante lässt sich \gls{shared Memory} auch dynamisch allozieren:  		
-  		\begin{lstlisting}[caption=~shared Memory dynamisch]
+  		\begin{lstlisting}[caption=shared Memory dynamisch]
 			__global__ void test()
 			{
   				extern __shared__ int s[];
@@ -134,7 +134,7 @@
         Dem \Gls{Kernel} muss die Größe des \gls{shared Memory} (pro \Gls{Block}) mitgegeben werden. In beiden Fällen wird also die Allozierung des Speichers von der CPU übernommen.  Dynamische Speicherverwaltung ist mittlerweile auch auf dem Device möglich. Darauf wird jedoch erst später eingegangen (siehe Abschnitt \ref{conc}). 
         
         Sollen mehrere Arrays im \gls{shared Memory} abgelegt werden, so definiert man sich lediglich Pointer auf ein großes Gesamtarray. Der Beginn des jeweils neuen Arrays sollte sinnvollerweise dem Ende des vorangegangenen entsprechen.  	  		
-  		\begin{lstlisting}	[caption=~shared Memory verteilt]	
+  		\begin{lstlisting}	[caption=shared Memory verteilt]	
 			extern __shared__ int s[];
 			int *integerData = s;                        
 			float *floatData = (float*)&integerData[nI];
@@ -148,7 +148,7 @@
 
 		Im folgenden Beispiel wird die Vektoraddition umgeschrieben, um sich die Vektoren A und B in den \gls{shared Memory} zu laden:	
 		
-		\begin{lstlisting}[caption=~Vektoraddition shared Memory]
+		\begin{lstlisting}[caption=Vektoraddition shared Memory]
 			__global__ void VecAdd(float* A, float* B, float* C, int N)
 			{
     			int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -172,7 +172,7 @@
 		Da ohnehin einmal \li`A[i]` und \li`B[i]` aus dem Speicher geladen werden müssen, ist es hier unsinnig, den Speicher überflüssigerweise zu kopieren. Allerdings könnten ja vor der Addition \li`As` und \li`Bs` noch mehrmals gebraucht werden. Die Aufgabe des Programmierers ist es nun herauszufinden, bei welcher Datengröße abhängig vom Algorithmus der \Gls{Performance}gewinn durch die höhere Bandbreite den Verlust durch das Kopieren übersteigt.
 		
 		\Gls{constant Memory} wird mit dem Keyword \li`__constant__` als globale Variable deklariert. Mit dem Befehl \li`cudaMemcpyToSymbol` wird diese dann in den Speicher der GPU kopiert und steht dort dann auch global zur Verfügung, muss also beim \Gls{Kernel}aufruf nicht explizit angegeben werden:
-		\begin{lstlisting}[caption=~Vektoraddition constant Memory]
+		\begin{lstlisting}[caption=Vektoraddition constant Memory]
 			__constant__ float d_A[12800];
 			__global__ void VecAdd(float* B, float* C, int N)
 			{
@@ -191,7 +191,7 @@
 		
 		\section{Mehrdimensionale Bl\"ocke}
 		Bisher wurden \Gls{Kernel} immer nur mit eindimensionalen \Glspl{Block}n und \Glspl{Grid} ausgeführt. Allerdings verbirgt sich dahinter ein Typecast. Zum Beispiel wird \li`<<<1,N>>>` zu \li`<<<dim3(1,1,1), dim3(N,1,1)>>>`. \li`dim3` bezeichnet dabei eine eingebaute Datenstruktur, die aus drei vorzeichenlosen Ganzzahlen besteht. In diesem Fall gibt sie die Anzahl der \Glspl{Block} im \Gls{Grid} bzw. der \Glspl{Thread} pro \Gls{Block} in die Raumrichtungen \li`(x,y,z)` an. Das \Gls{Grid} und die \Glspl{Block} sind also keine Ketten sondern Quader von Objekten. Die Indizes der \Glspl{Block} und \Glspl{Thread} lassen sich dann Spalten-, Zeilen- und Ebenenweise abfragen: 			
-		\begin{lstlisting}[caption=~Multidimensionale Blöcke]
+		\begin{lstlisting}[caption=Multidimensionale Blöcke]
 			__global__ test()
 			{
 				int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -208,7 +208,7 @@
         In diesem Fall werden also \Glspl{Block} der Größe \li`BLOCK_SIZE`$\times$\li`BLOCK_SIZE` in einem \Gls{Grid} mit \li`GRID_SIZE`$\times$\li`GRID_SIZE` \Glspl{Block}n angeordnet. Bei modernen GPUs ist die Obergrenze für die Dimension der \Glspl{Block} \li`(1024,1024,64)`.
         
         Das folgende Beispiel behandelt die Matrixmultiplikation unter Zuhilfenahme von \gls{shared Memory} und Multidimensionalen \Glspl{Block}n:       
-        \begin{lstlisting}[caption=~Matrixmultiplikation]
+        \begin{lstlisting}[caption=Matrixmultiplikation]
 			#define BLOCK_SIZE 16 	
 			typedef struct
 			{
@@ -308,7 +308,7 @@
         								
 		\section{Error Handling}
 		Beinahe jeder \Gls{API}-Call liefert einen speziellen CUDA-Datentyp namens \li`cudaError_t`. Folgende Funktion fragt diesen Wert ab und gibt einen Fehlerstring zurück:		
-		\begin{lstlisting}[caption=~Error Handling]
+		\begin{lstlisting}[caption=Error Handling]
 			#define CUDA_ERROR_CHECK
 
 			#define CudaCheckError()  __cudaCheckError(__FILE__, __LINE__)
@@ -344,7 +344,7 @@
 		\section{Stream Processing}
 		\subsection{Events}
         Um die Laufzeit zu messen, eignen sich CUDA-Events:		
-		\begin{lstlisting}[caption=~Events]
+		\begin{lstlisting}[caption=Events]
 			cudaEvent_t start, stop;
 			cudaEventCreate(&start);
 			cudaEventCreate(&stop);
@@ -372,7 +372,7 @@
 		Mittels \li`cudaGetDeviceCount` lässt sich ermitteln, über wie viele CUDA-fähige Grafikkarten die Platine, auf der die CPU sitzt, verfügt. Für jedes Gerät einzeln können dann die Eigenschaften des Geräts abgefragt werden.
 		
 		Die Geräte lassen sich mit \li`cudaSetDevice` manuell umschalten. Speicher der einen GPU lässt sich nur dann von der anderen abrufen, wenn der Peer-to-Peer Access mit \li`cudaDeviceEnablePeerAccess` aktiviert und der Speicher explizit zwischen den GPUs kopiert wird. Die Null am Ende teilt die Events dem Stream mit der Nummer 0 zu (siehe \ref{streams}). Wird diese Angabe unterdrückt, so werden die Aufrufe automatisch diesem \Gls{Stream} zugeordnet (default-\Gls{Stream}).
-		\begin{lstlisting}[caption=~Device Peer-to-Peer Access]
+		\begin{lstlisting}[caption=Device Peer-to-Peer Access]
 			int deviceCount;
 			cudaGetDeviceCount(&deviceCount);
 
@@ -405,7 +405,7 @@
 		
 		\newpage
 		
-		\begin{lstlisting}[caption=~Streams]
+		\begin{lstlisting}[caption=Streams]
 			uint stream_num = ...;
 			uint size = ...;	    
 			float* hostPtr;
@@ -461,7 +461,7 @@
 		\subsection{Synchronisation}\label{sync}
 		Explizite Synchronisierungsfunktionen:
 		
-		\begin{lstlisting}[caption=~Explizite Synchronisierung]
+		\begin{lstlisting}[caption=Explizite Synchronisierung]
 			__host__ cudaError_t cudaDeviceSynchronize(void)
 			__host__ cudaError_t cudaStreamSynchronize(cudaStream_t)
 			__host__ cudaError_t cudaEventSynchronize(cudaEvent_t)	
@@ -509,7 +509,7 @@
 		
 		\section{Datentypen}
 		Auf GPUs existiert ein 16 Bit Datentyp mit halber Präzision. Benutzt man die in CUDA eingebauten arithmetischen Funktionen, kann man die Performance dadurch weiter verbessern.			
-		\begin{lstlisting}[caption=~Half Precision]
+		\begin{lstlisting}[caption=Half Precision]
 		#include<cuda_fp16.h>
 		#include "fp16_conversion.h"
 		
@@ -549,7 +549,7 @@
 		
 		Das folgende Beispiel zeigt eine einfache Implementierung der Summenreduktion:
 		
-		\begin{lstlisting}[caption=~Reduktion]		
+		\begin{lstlisting}[caption=Reduktion]		
 		__global__ void reduction(int *data)
 		{
 			uint tid = threadIdx.x;
@@ -599,7 +599,7 @@
 		Verschiedene HPC Librarys bieten Implementierungen der gängigsten Reduktionen an, z.B. THRUST oder MAGMA. 
 		
 		\section{Dynamischer Parallelismus}\label{dyn}
-		\begin{lstlisting}[caption=~Dynamischer Parallelismus]
+		\begin{lstlisting}[caption=Dynamischer Parallelismus]
 			...
   			kernel_parent<<<1,1>>>(device, &N);
 			...
@@ -656,7 +656,7 @@
 		
 		Kompilieren: \li`nvcc dynpar.cu -arch=compute_61 -code=sm_61 -rdc=true -lcudadevrt`
 		
-		\section{~CUDA-Toolkit}
+		\section{CUDA-Toolkit}
 			\subsection{Baumstruktur}
 			\subsection{NVCC}
 			Der Nvidia CUDA Compiler (\gls{nvcc}) wird benutzt um sowohl Host- als auch Devicecode zu kompilieren. Es handelt sich dabei um eine Obermenge des g++. Es lässt sich bis zum C++14 Standard alles in C oder C++ kompilieren. Soll explizit CUDA Code kompiliert werden, so muss die Quelldatei die Dateiendung \li`.cu` tragen. Andernfalls wird der Code als gewöhnliches C++ kompiliert und der Compiler liefert Fehler, sobald er auf Devicecode oder auf einen Aufruf der Runtime Library stößt.

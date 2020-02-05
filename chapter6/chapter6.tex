@@ -1,266 +1,44 @@
-	\chapter{OpenACC v.s. OpenMP}
-	Um die bisher genannten Konzepte zu vereinfachen, existieren seit einigen Jahren Bestrebungen, Compiler zu entwickeln, die ohne das explizite Programmieren von \Glspl{Kernel} bestimmte Teile des Programms automatisch in parallelen Maschinencode übersetzen. OpenMP ist eine Library für Thread-paralleles Programmieren angewandt auf Systeme mit shared Memory, also im Wesentlichen Prozessoren mit mehreren Kernen und gemeinsamen Speicher. OpenACC ist ein Programmierstandard der Portland Group, der ein ähnliches Konzept verfolgt. Mittels Compileranweisungen (\li`#pragma`) zeichnet man Regionen zur Parallelisierung aus und gibt lediglich Hinweise für Optimierungen an. Der Compiler versucht dann eigenständig diesen Teil des Codes plattformunabhängig wahlweise in paralleles Assembly oder \Gls{NVPTX} zu übersetzen. Das Projekt läuft unter dem Slogan \textit{More Science, Less Programming}. Der Programmierer soll mit HPC möglichst wenig konfrontiert werden und damit mehr Zeit für die Entwicklung wissenschaftlicher Applikationen haben. Dieser Gewinn an Funktionalität ist allerdings nur auf Kosten von Performance möglich. Selbst die Entwickler gehen von einem Leistungsverlust gegenüber CUDA von etwa 30\% aus. Die Portland Group wurde 2013 von der Nvidia Corporation gekauft.
+	\chapter{HPC Librarys}	
+	Um die Arbeit zu erleichtern, wurden sowohl für OpenCL als auch für CUDA umfangreiche High Performance Bibliotheken implementiert. Beteiligt sind hier die Entwickler von CUDA und OpenCL, eine große Community sowie Forschungsgruppen an Universitäten und privaten Forschungseinrichtungen. Die wichtigsten Themengebiete sind lineare Algebra, Machine Learning, Fast Fourier Transformationen und Monte Carlo Algorithmen, da diese die Grundlage für die meisten Algorithmen in IT und Naturwissenschaften bilden. Die folgenden Kapitel behandeln Einführungen in die Funktionsweise der wichtigsten Bibliotheken für CUDA und OpenCL. Aufgrund des großen Umfangs kann natürlich nur ein kleiner Teil davon gezeigt werden. Es ist daher unumgänglich, in größeren Projekten direkt mit dem Quellmaterial zu arbeiten, also mit den Dokumentationen und Programming Guides der Entwickler.
+	\newpage	
 	
-	Seit Version 4.5 unterstützt OpenMP ebenfalls Offloading, also das Verschieben von Daten in den Speicher der GPU.
-	 
-		\section{OpenACC Direktiven mittels PGI-SDK}
-		Nur wenige Compiler unterstützen OpenACC. Lediglich der C++-Compiler der Portland Group unterstützt den Standard vollständig. Es handelt sich dabei um einen kommerziellen Compiler. Eine kostenlose Version des PGI-SDK ist aber unter \url{https://www.pgroup.com/products/community.htm} verfügbar.
+	\startcontents[THRUST]
+   	\printcontents[THRUST]{l}{2}{\section*{THRUST}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter6/thrust.tex}		
+	\stopcontents[THRUST]
 		
-			\subsection{Loops}
-			Zunächst wird ein Teil des Codes, der als parallelisierbar erkannt wurde, mit einem Pragma und einem extra Scope ausgezeichnet. Es folgt ein spezielles Pragma für die Parallelisierung einer Schleife innerhalb dieser Scope. 
-			\begin{lstlisting}[caption=~OpenACC: Loops]
-			#pragma acc parallel
-			{
-				#pragma acc loop
-				for(int i = 0; j < N; ++i) a[i] = 0;
-			}
-			\end{lstlisting}
-			
-			Die gekennzeichnete Schleife wir dann automatisch auf alle verfügbaren Threads aufgeteilt.
-			Mittels \li`#pragma  acc parallel loop reduction(max:err)` lassen sich Variablen für eine Reduktion angeben. Nach Abhandlung der Schleife steht das Ergebnis in \li`err` bereit. Tabelle \ref{oaccred} zeigt eine Auflistung aller implementierten Reduktionsoperationen.
-	
-			\begin{table}[h]
-			\centering
-			\begin{tabular}{|l|l|l|}
-				\toprule
-				\textbf{Operator} & \textbf{Description} & \textbf{Example} \\\hline\hline
-				+ & Addition/Summation & reduction(+:sum) \\\hline
-				* & Multiplication/Product & reduction(*:product) \\\hline
-		 		max & Maximum value & reduction(max:maximum) \\\hline
-				min & Minimum & valuereduction(min:minimum) \\\hline
-				\& & Bitwise and & reduction(\& :val) \\\hline
-				| & Bitwise or & reduction(|:val) \\\hline
-				\&\& & Logical and & reduction(\&\& :val) \\\hline
-				|| & Logical or & reduction(||:val) \\\bottomrule
-			\end{tabular}
-			\caption{Reduktionen in OpenACC}
-			\label{oaccred}
-			\end{table}
+	\newpage
+	\startcontents[Random Number Generators]
+   	\printcontents[Random Number Generators]{l}{2}{\section*{Random Number Generators}\setcounter{tocdepth}{2}}	
+	\input{/home/kat10110/script/chapter6/rng.tex}	
+	\stopcontents[Random Number Generators]
 		
-			\subsection{Speicherallozierungen}
-			Zur Berechnung mittels GPU müssen Daten in den Speicher der GPU verschoben werden. Um dies zu umgehen, kann pinned Memory verwendet werden. Dies muss beim Kompilieren jedoch angegeben werden (siehe \ref{komp}). Vor Eintreten in eine parallele Region gibt man dem Compiler einen Hinweis, welche Arrays auf die GPU kopiert werden sollen (\li`copyin`) und welche erstellt werden müssen (\li`create`). Am Ende der Region muss angegeben werden, welche Daten die GPU verlassen (\li`copyout`) und welcher Speicher freigegeben wird (\li`delete`). Dabei unterstützt OpenACC Array Slicing ähnlich Python:\\
-			\li`copy(array[starting_index:length])`\\
-			\li`copy` erstellt Speicher, falls nötig, und kopiert dann explizit.
-			
-			\begin{lstlisting}[caption=~OpenACC: Speicherverwaltung]
-			#pragma acc enter data copyin(a[0:N],b[0:N]) create(c[0:N])
-			
-			#pragma acc parallel loop
-			for(int i = 0; i < N; ++i) c[i] = a[i] + b[i];
-			
-			#pragma acc exit data copyout(c[0:N]) delete(a,b)
-			\end{lstlisting}
-			
-			Ein bekanntes Beispiel ist die Lösung der stationären 2d Wärmeleitungsgleichung. Jeder neue Gitterpunkt ist der Mittelwert der Nachbarpunkte:
-			\begin{lstlisting}[caption=~OpenACC: Wärmeleitungsgleichung]
-			...
-			
-			float error;
-			
-			#pragma acc data copy(A[:n*m]) copyin(Anew[:n*m]) 
-			while(err > tol && iter < iter_max) 
-			{
-				error = 0.0f;
-				
-				#pragma acc parallel loop reduction(max:err) \
-					copyin(A[0:n*m]) copy(Anew[0:n*m])
-				for(intj = 1; j < n-1; ++j) 
-				{
-					for(int i = 1; i < m-1; ++i) 
-					{
-						Anew[j][i] = 0.25 * (A[j][i+1] + A[j][i-1] +A[j-1][i] + A[j+1][i]);
-						
-						error = fmax(err, abs(Anew[j][i] - A[j][i]));
-					}
-				}
-				
+	\newpage
+	\startcontents[Fast Fourier Transformation]
+   	\printcontents[Fast Fourier Transformation]{l}{2}{\section*{Fast Fourier Transformation}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter6/fft.tex}
+	\stopcontents[Fast Fourier Transformation]
 		
-				#pragma acc parallel loop copyin(Anew[0:n*m]) copyout(A[0:n*m])
-				for(int j = 1; j < n-1; ++j) 
-				{
-					for(int i = 1; i < m-1; ++i) A[j][i] = Anew[j][i];
-				}
-				
-				iter++;
-			}
-			
-			...
-			\end{lstlisting}
-			
-			Die while-Schleife muss ebenfalls markiert werden, anderfalls wird nach jeder Iteration überflüssigerweise kopiert.
-			
-			Zur Synchronisation existiert die \li`update` Direktive, die eine Barriere bildet, bis bestimmte Daten bereit stehen (\li`device` für GPU, \li`self` für CPU):
-			
-			\begin{center} 
-			\li`update self(x[0:count])`
-			
-			\li`update device(x[0:count])`
-			\end{center}
-			
-			\subsection{Kompilierung und Profiling}\label{komp}
-			Es existieren zwei verschiedene Compiler für C und C++:
-			
-			\begin{center}
-			\li`pgcc  -fast -Minfo=all -ta=tesla main.c`
+	\newpage
+	\startcontents[Lineare Algebra]
+    \printcontents[Lineare Algebra]{l}{2}{\section*{Lineare Algebra}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter6/linalg.tex}
+	\stopcontents[Lineare Algebra]
 
-			\li`pgc++ -fast -Minfo=all -ta=tesla main.cpp`
-			\end{center}
-			
-			\li`-fast` steht für die schnellste Optimierung, \li`-Minfo=all` für die meisten Warnungen und Informationen zur Parallelisierung. Die wichtigste Angabe ist aber die des Target Accelerators. \li`-ta=tesla` steht dabei für eine Tesla GPU (\li`-ta=tesla:managed` für pinned Memory), \li`-ta=multicore` für einen beliebigen Mehrkernprozessor.
-			Die Ausführbare Datei lässt sich mit dem PGI Profiler genauer untersuchen:
-			
-			\begin{center}
-			\li`pgprof ./a.out`
-			\end{center}
-			
-			Dieser untersucht nicht nur die OpenACC Anweisungen, sondern gibt auch die zugrunde liegenden CUDA Funktionen und deren Laufzeit aus. Dieses Tool entspricht \li`nvprof`.
-			
-			\subsection{Structs und Klassen}
-			Befehle zum Kopieren oder zum Löschen lassen sich auch direkt in einer Datenstruktur verbauen.
-			\begin{lstlisting}[caption=~OpenACC: C-Structs]
-			typedef struct 
-			{
-				float* arr;
-				int n;
-			} vector;
-			
-			int main(void)
-			{
-				vector v;
-				v.n = 10;
-				v.arr = (float*) malloc(v.n*sizeof(float));
-				#pragma acc enter data copyin(v)
-				#pragma acc enter data create(v.arr[0:v.n])
-				...
-				#pragma acc exit data delete(v.arr)
-				#pragma acc exit data delete(v)
-				free(v.arr);
-			}			
-			\end{lstlisting}
-			
-			In C++ können diese Anweisungen sogar im Konstruktor oder Destruktor einer Klasse verwendet werden.
-			\begin{lstlisting}[caption=~OpenACC: C++-Klassen]
-			class vector 
-			{
-			private:
-				float* arr;
-				int n;
-			public:
-				vector(int size)
-				{
-					n = size;
-					arr = new float[n];
-					#pragma acc enter data copyin(this)
-					#pragma acc enter data create(arr[0:n])
-				}
-
-				~vector()
-				{
-					#pragma acc exit data delete(arr)
-					#pragma acc exit data delete(this)
-					delete(arr);
-				}
-			};
-			\end{lstlisting}
-
-			Aus design-technischen Gründen (Encapsulation) empfiehlt es sich, für ein update-Pragma einen Wrapper als Member Funktion zu programmieren:
-			\begin{lstlisting}[caption=~OpenACC: Update Member-Funktion]
-			void accUpdateSelf() 
-			{
-				#pragma acc update self(arr[0:n])
-			}
-			void accUpdateDevice() 
-			{
-				#pragma acc update device(arr[0:n])
-			}			
-			\end{lstlisting}
-
-			\newpage
-			\subsection{Fortgeschrittenes}
-			Folgen zwei Schleifen aufeinander, was oft bei mehrdimensionalen Daten der Fall ist, lässt sich eine bestimmte Anzahl davon zu einer zusammenfügen:
-			\begin{lstlisting}[caption=~OpenACC: Loop Collapse]
-			#pragma acc parallel loop collapse(2)
-			for(int i = 0; i < 4; ++i) 
-				for(j = 0; j < 4; ++j)
-					array[i][j] = 0.0f;
-			\end{lstlisting}
-			
-			Tiles entsprechen in etwa einem 2D \Gls{Block} in CUDA:
-			\begin{lstlisting}[caption=~OpenACC: Tile]
-			#pragma acc kernels loop tile(2,2)
-			for(int x = 0; x < 4; ++x)
-			{
-				for(int y = 0; y < 4; ++y)
-				{
-					array[x][y]++;
-				}
-			}
-			\end{lstlisting}
-			
-			\Glspl{Block} in CUDA entsprechen sogenannten \Glspl{Gang} in OpenACC. \Glspl{Warp} entsprechen \Glspl{Worker}, \Glspl{Thread} entsprechen \Glspl{Vector}. Für alle drei lässt sich explizit eine Zahl angeben. Dann kann eine Schleife für eine dieser Gruppen markiert werden.
-			\begin{lstlisting}[caption=~OpenACC: Gangs Workers Vectors]
-			#pragma acc parallel num_gangs(2) num_workers(2) vector_length(32)
-			{
-				#pragma acc loop gang worker
-				for(int x = 0; x < 4; ++x)
-				{
-					#pragma acc loop vector
-					for(int y = 0; y < 32; ++y) array[x][y]++;
-				}
-			}			
-			\end{lstlisting}
-			
-		\section{OpenACC und CUDA}
-		Bei OpenACC geht es um die einfache Parallelisierung von eigenem Code ohne die explizite Programmierung von \Gls{Kernel}. In den meisten Fällen ist man jedoch auf zusätzliche CUDA Librarys angewiesen. Um eine CUDA Funktion mit einem durch ein Pragma kopiertes Array im Device Speicher aufzurufen, muss dieses extra angegeben werden, da der Variablenname lediglich ein Pointer auf Host Memory ist.
-		\begin{lstlisting}[caption=~OpenACC/CUDA Zusammenspiel: Host Memory]
-		float* x = ...;
-		int n = ...;
-		#pragma acc data copyin(x[0:n])
-		{
-			...
-			#pragma acc host_data use_device(x)
-			<Cuda-Funktion>(x);
-			...
-		}
-		\end{lstlisting}
-
-		Im umgekehrten Fall muss ein Device Pointer für eine Schleife angegeben werden. So kann beispielsweise ein von einer CUDA Funktion modifiziertes Array in OpenACC wie gewohnt ohne eine Kopie benutzt werden.
-		\begin{lstlisting}[caption=~OpenACC/CUDA Zusammenspiel: Device Memory]
-		float* x;
-		int n = ...;
-		cudaMalloc(&x, n*sizeof(float));
-		...
-		#pragma acc kernels deviceptr(x)
-		for(int i = 0; i < n; ++i) x[i] = i;
-		\end{lstlisting}
-			
-		\newpage
-		\section{OpenMP und Offloading}
-		Das Beispiel Wärmeleitungsgleichung könnte in OpenMP etwa so aussehen:
-		\begin{lstlisting}[caption=~OpenMP: Offloading]
-		...
-		float error;
-		#pragma omp target data map(alloc:Anew) map(A)
-		while(error > tol && iter < iter_max)
-		{
-			error = 0.0f;
-			#pragma omp target teams distribute parallel for reduction(max:error)
-			for(int j = 1; j < n-1; ++j)
-			{
-				for(int i = 1; i < m-1; ++i)
-				{
-					Anew[j][i] = 0.25 * ( A[j][i+1] + A[j][i-1] + A[j-1][i] + A[j+1][i]);
-					error = fmax(error, fabs(Anew[j][i] - A[j][i]));
-				}
-			}
-			
-			#pragma omp target teams distribute parallel for
-			for(int j = 1; j < n-1; ++j)
-			{
-				for(int i = 1; i < m-1; ++i) A[j][i] = Anew[j][i];
-			}
-			
-			iter++;
-		}
-		...
-		\end{lstlisting}
+	\newpage
+	\startcontents[Machine Learning]
+    \printcontents[Machine Learning]{l}{2}{\section*{Machine Learning}\setcounter{tocdepth}{2}}	
+	\input{/home/kat10110/script/chapter6/ml.tex}
+	\stopcontents[Machine Learning]    
+		
+	\newpage
+	\startcontents[Cluster Computing mit NCCL]
+    \printcontents[Cluster Computing mit NCCL]{l}{2}{\section*{Cluster Computing mit NCCL}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter6/nccl.tex}
+    \stopcontents[Cluster Computing mit NCCL]  	
+    
+    \newpage
+	\startcontents[Graph-Computing mit nvGRAPH]
+    \printcontents[Graph-Computing mit nvGRAPH]{l}{2}{\section*{Graph-Computing mit nvGRAPH}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter6/nvgraph.tex}
+    \stopcontents[Graph-Computing mit nvGRAPH]

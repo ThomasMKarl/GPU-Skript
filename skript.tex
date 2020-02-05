@@ -74,7 +74,7 @@
   %keywordstyle=\color{red!50!black},% keyword style
   keywordstyle=\color{blue},% keyword style
   language=C++,                    % the language of the code
-  morekeywords={__constant__, __shared__, __device__, __host__, __global__, __managed__, float2, float3, float4, dim3, int2, int3, int4, uint, half, cudaStream_t, cudaEvent_t, cudaError_t, cudnnError_t, cusparseError_t, cublasError_t, curandError_t, cufftError_t, cusolverError_t, __kernel, kernel, __constant, constant, __local, local, __private, private, __global, global, cl_device_id, cl_platform_id, cl_int, cl_uint, cl_float, cl_double, string, cl_mem, cl_kernel, size_t, cl_event, cl_program, cl_context, cl_command_queue, FILE, restrict, event_t, ptrdiff_t , intptr_t, uintptr_t, device_ptr, device_vector, host_vector, vector, Platform, Context, CommandQueue, Buffer, Program, Kernel, Sources, Device, cl_context_properties, cufftHandle, cufftComplex, cufftReal, cufftDouble, cufftDoubleComplex, clfftSetupData, clfftDim, fftw_complex, fftw_plan, curandStateSobol32_t, curandStateScrambledSobol32_t, curandStateSobol64_t, curandStateScrambledSobol64_t, curandState (XORWOW), curandStatePhilox4_32_10_t, curandStateMRG32k3a, curandStateMtgp32_t, curandGenerator_t, curandState, clrngMrg31k3pHostStream, clrngMrg31k3pStream, clprobdistExponential, clqmcLatticeRule, clqmcLatticeRuleStream, cublasHandle_t, cublasOperation_t, cusolverDnHandle_t, cusolverSpHandle_t, cusolverRfHandle_t, magma_queue_t, magma_int_t, LocalVector, CG, LocalStencil, __attribute__, aligned_allocator, auto, tensorflow, trt, tf, keras, Mat, cudnnHandle_t, cudnnTensorDescriptor_t, cudnnFilterDescriptor_t, cudnnConvolutionDescriptor_t, cudnnConvolutionFwdAlgo_t},% if you want to add more keywords to the set
+  morekeywords={__constant__, __shared__, __device__, __host__, __global__, __managed__, float2, float3, float4, dim3, int2, int3, int4, uint, half, cudaStream_t, cudaEvent_t, cudaError_t, cudnnError_t, cusparseError_t, cublasError_t, curandError_t, cufftError_t, cusolverError_t, __kernel, kernel, __constant, constant, __local, local, __private, private, __global, global, cl_device_id, cl_platform_id, cl_int, cl_uint, cl_float, cl_double, string, cl_mem, cl_kernel, size_t, cl_event, cl_program, cl_context, cl_command_queue, FILE, restrict, event_t, ptrdiff_t , intptr_t, uintptr_t, device_ptr, device_vector, host_vector, vector, Platform, Context, CommandQueue, Buffer, Program, Kernel, Sources, Device, cl_context_properties, hipStream_t, cufftHandle, cufftComplex, cufftReal, cufftDouble, cufftDoubleComplex, clfftSetupData, clfftDim, fftw_complex, fftw_plan, curandStateSobol32_t, curandStateScrambledSobol32_t, curandStateSobol64_t, curandStateScrambledSobol64_t, curandState (XORWOW), curandStatePhilox4_32_10_t, curandStateMRG32k3a, curandStateMtgp32_t, curandGenerator_t, curandState, clrngMrg31k3pHostStream, clrngMrg31k3pStream, clprobdistExponential, clqmcLatticeRule, clqmcLatticeRuleStream, cublasHandle_t, cublasOperation_t, cuComplex, cuDoubleComplex, clsparseIdx_t, cldenseVector, clsparseCreateResult, clsparseCreateSolverResult, clsparseCsrMatrix, cusolverDnHandle_t, cusolverSpHandle_t, cusolverRfHandle_t, magma_queue_t, magma_int_t, LocalVector, CG, LocalStencil, __attribute__, aligned_allocator, auto, tensorflow, trt, tf, keras, Mat, cudnnHandle_t, cudnnTensorDescriptor_t, cudnnFilterDescriptor_t, cudnnConvolutionDescriptor_t, cudnnConvolutionFwdAlgo_t},% if you want to add more keywords to the set
   numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
   numbersep=5pt,                   % how far the line-numbers are from the code
   numberstyle=\small\color{black}, % the style that is used for the line-numbers
@@ -141,8 +141,8 @@
 \date{Wintersemester 2019/20}
 \renewcommand{\titlepagestyle}{URtitle} 
 \renewcommand{\lstlistingname}{Codebeispiel}
-\renewcommand{\thechapter}{\Roman{chapter}}
-\renewcommand{\thesection}{\thechapter~\arabic{section}}
+%\renewcommand{\thechapter}{\Roman{chapter}}
+%\renewcommand{\thesection}{\thechapter~\arabic{section}}
 
 \cfoot*{ }
 \ofoot*{\thepage}% the pagenumber in the center of the foot, also on plain pages
@@ -202,31 +202,34 @@
 	\startcontents[Einführung in OpenCL]
     \printcontents[Einführung in OpenCL]{l}{1}{\chapter*{Einführung in OpenCL}\setcounter{tocdepth}{2}}
 	\input{/home/kat10110/script/chapter4/chapter4.tex}
-	\stopcontents[Einführung in OpenCL]
+	\stopcontents[Einführung in OpenCL]	
+	
+	\input{/home/kat10110/script/chapter5/chapter5.tex}
 	
 	\startcontents[HPC Librarys]
     \printcontents[HPC Librarys]{l}{1}{\chapter*{HPC Librarys}\setcounter{tocdepth}{1}}
-    \input{/home/kat10110/script/chapter5/chapter5.tex}
+    \input{/home/kat10110/script/chapter6/chapter6.tex}
     \stopcontents[HPC Librarys]
     
    	\startcontents[OpenACC v.s. OpenMP]
     \printcontents[OpenACC v.s. OpenMP]{l}{1}{\chapter*{OpenACC v.s. OpenMP}\setcounter{tocdepth}{2}}
-	\input{/home/kat10110/script/chapter6/chapter6.tex}
+	\input{/home/kat10110/script/chapter7/chapter7.tex}
 	\stopcontents[OpenACC v.s. OpenMP]
 	 
   	\startcontents[OpenCL auf FPGAs]
     \printcontents[OpenCL auf FPGAs]{l}{1}{\chapter*{OpenCL auf FPGAs}\setcounter{tocdepth}{2}}
-	\input{/home/kat10110/script/chapter7/chapter7.tex}
-	\stopcontents[OpenCL auf FPGAs]  
+	\input{/home/kat10110/script/chapter8/chapter8.tex}
+	\stopcontents[OpenCL auf FPGAs]    	
+	
+	\input{/home/kat10110/script/chapter9/chapter9.tex}
+	
+	\startcontents[Grafik-Rendering]
+    \printcontents[Grafik-Rendering]{l}{1}{\chapter*{Grafik-Rendering}\setcounter{tocdepth}{2}}
+	\input{/home/kat10110/script/chapter10/chapter10.tex}
+	\stopcontents[Grafik-Rendering]
 	
     \appendix
-    
-    \chapter{Cluster Computing mit NCCL}
-    \url{https://docs.nvidia.com/deeplearning/sdk/nccl-install-guide/index.html}
-    
-    \chapter{nvGRAPH}
-    \url{https://docs.nvidia.com/cuda/nvgraph/index.html}
-    
+
 	\chapter{Nvidia Jetson}
 		\section{Produkte}
 		\url{https://www.nvidia.com/de-de/autonomous-machines/embedded-systems/}
@@ -234,16 +237,6 @@
 		\url{https://developer.nvidia.com/embedded/jetpack}
 		\section{Isaac SDK}
 		\url{https://docs.nvidia.com/isaac/isaac/doc/index.html}
-		
-	\chapter{Grafik-Rendering}
-		\section{OpenGL}
-		\url{http://www.opengl-tutorial.org/}	
-		\section{Vulkan}
-		\url{https://vulkan-tutorial.com/}	
-		\section{OpenCL Schnittstelle}	
-		\href{https://software.intel.com/en-us/articles/opencl-and-opengl-interoperability-tutorial}{https://software.intel.com/en-us/articles/ \\ opencl-and-opengl-interoperability-tutorial}	
-		\section{CUDA Schnittstelle}
-		\url{https://www.3dgep.com/opengl-interoperability-with-cuda/}	
 		
 	\chapter{SPIR-V}
 	\url{https://www.khronos.org/spir/}
