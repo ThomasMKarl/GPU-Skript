@@ -120,7 +120,8 @@
     		cudaMemcpy(send_buf, ..., size*sizeof(int), cudaMemcpyHostToDevice);   
 	    MPI_Send(send_buf, size, MPI_INT, 1, 0, MPI_COMM_WORLD);
 	    ...
-    	MPI_Recv(recv_buf, size, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    	MPI_Recv(recv_buf, size, MPI_INT, 0, 0, MPI_COMM_WORLD, 
+    		MPI_STATUS_IGNORE);
     	if(rank == 1) 
     		cudaMemcpy(..., recv_buf, size*sizeof(int), cudaMemcpyDeviceToHost);
     		

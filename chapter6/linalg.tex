@@ -104,12 +104,10 @@ der Events.
 		
 		Folgendes Beispiel zeigt die Erstellung einer Matrix im \textit{Coordinated Format} (COO). Wie bei cuBLAS existiert auch hier kein expliziter Datentyp. Für die Matrixwerte und die Indizes werden eigene Arrays erstellt und manuell belegt.	
 		\begin{lstlisting}[caption=cuSPARSE: Matrix erstellen]
-		int n   = ...;
-		int nnz = ...;
+		int n   = ...; int nnz = ...;
 		int *cooRowIndexHostPtr =    (int*)malloc(nnz*sizeof(int));
 		int *cooColIndexHostPtr =    (int*)malloc(nnz*sizeof(int));
 		double *cooValHostPtr   = (double*)malloc(nnz*sizeof(double));
-
 
 		//Beispiel (COO Format): 
 		cooRowIndexHostPtr[0]=0; cooColIndexHostPtr[0]=0; cooValHostPtr[0]=1.0;
@@ -140,6 +138,9 @@ der Events.
 		Dadurch lassen sich beim Speichern redundante Informationen vermeiden.
 
 		Die Library implementiert zudem einige Konvertierungsfunktionen, z.B. vom COO ins CSR Format. Wichtig ist die Angabe von \li`nnz`, die Anzahl der von null verschiedenen Elemente.
+
+		\newpage		
+		
 		\begin{lstlisting}[caption=cuSPARSE: Initialisierung und Konvertierung]
 		//Malloc und Memcopy
 		...
@@ -166,6 +167,7 @@ der Events.
 		\end{itemize}
 		
 		Bei Letzterem werden die Vektoren nacheinander im selben Array abgespeichert. Im Folgenden wird jeweils ein Beispiel gezeigt. 
+		
 		\begin{lstlisting}[caption=cuSPARSE: Beispiele und Cleanup]
 		//Level 1
 		cusparseDsctr(handle, nnz_vector, xVal, xInd, 
@@ -302,6 +304,7 @@ der Events.
 		Es existieren zwei Interfaces. Falls keine Grafikkarte zur Verfügung steht, kann das CPU-Interface benutzt werden. In diesem Fall wird ein OpenMP parallelisierter Algorithmus verwendet. Andernfalls kann mittels GPU-Interface ein mit CUDA beschleunigter Hybridalgorithmus verwendet werden. Sollte trotz vorhandener GPU (und GPU-Installation) das CPU-Interface benutzt werden, wird dennoch ein Hybridalgorithmus verwendet.
 		
 		Im Folgenden soll die LU-Zerlegung in cuSOLVER mit MAGMA durchgeführt werden.
+		
 		\begin{lstlisting}[caption=MAGMA: CPU-Interface]
 		magma_init();
 		magma_queue_t queue;
@@ -309,6 +312,7 @@ der Events.
 		magma_queue_create(dev, &queue);
   
 		magma_int_t m = ...; magma_int_t n = 1;
+                      
                       
 		float *a; magma_smalloc_pinned(&a, m*m);   
 		float *b; magma_smalloc_pinned(&b, m);  
@@ -415,6 +419,8 @@ der Events.
 			
 		\subsection{clSPARSE}
 		Ein Teil von cuSPARSE und cuSOLVER sowie zusätliche iterative Verfahren wurden von AMD in OpenCL als clSPARSE implementiert. Das \Gls{API} wurde vollständig in C++ programmiert und ist kompatibel zum OpenCL C++ Wrapper. Die Bibliothek enthält folgende Funktionen:
+		
+		\newpage
 		
 		\begin{itemize}				
 			\item Sparse Matrix - dense Vector multiply (SpM-dV)

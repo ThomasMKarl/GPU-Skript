@@ -170,17 +170,10 @@
 			Aus design-technischen Gründen (Encapsulation) empfiehlt es sich, für ein update-Pragma einen Wrapper als Member Funktion zu programmieren:
 			
 			\begin{lstlisting}[caption=OpenACC: Update Member-Funktion]
-			void accUpdateSelf() 
-			{
-				#pragma acc update self(arr[0:n])
-			}
-			void accUpdateDevice() 
-			{
-				#pragma acc update device(arr[0:n])
-			}			
+			void accUpdateSelf()   { #pragma acc update   self(arr[0:n]) }
+			void accUpdateDevice() { #pragma acc update device(arr[0:n]) }			
 			\end{lstlisting}
 
-			\newpage
 			\subsection{Fortgeschrittenes}
 			Folgen zwei Schleifen aufeinander, was oft bei mehrdimensionalen Daten der Fall ist, lässt sich eine bestimmte Anzahl davon zu einer zusammenfügen:
 			
@@ -205,6 +198,8 @@
 			\end{lstlisting}
 			
 			\Glspl{Block} in CUDA entsprechen sogenannten \enquote{\Glspl{Gang}} in OpenACC. \Glspl{Warp} entsprechen \enquote{\Glspl{Worker}}, \Glspl{Thread} entsprechen \enquote{\Glspl{Vector}}. Für alle drei lässt sich explizit eine Zahl angeben. Dann kann eine Schleife für eine dieser Gruppen markiert werden.
+			
+			\newpage
 			
 			\begin{lstlisting}[caption=OpenACC: Gangs Workers Vectors]
 			#pragma acc parallel num_gangs(2) num_workers(2) vector_length(32)
@@ -244,7 +239,6 @@
 		for(int i = 0; i < n; ++i) x[i] = i;
 		\end{lstlisting}
 			
-		\newpage
 		\section{OpenMP und Offloading}
 		Das Beispiel Wärmeleitungsgleichung könnte in OpenMP etwa so aussehen:
 		
@@ -264,6 +258,9 @@
 					error = fmax(error, fabs(Anew[j][i] - A[j][i]));
 				}
 			}
+			
+			
+			
 			
 			#pragma omp target teams distribute parallel for
 			for(int j = 1; j < n-1; ++j)

@@ -1,16 +1,19 @@
 	\chapter{Intel oneAPI}
+	Neuere Entwicklungen im HPC Bereich gehen in Richtung von hardwarenahem heterogenem Rechnen. Für 2020 ist der Release von neuen Grafikkarten der Firma Intel unter dem Codenamen \enquote{Xe} geplant. Die Firma ist eigentlich bekannt für die Herstellung und Vermarktung von High-End Prozessoren und Serveranlagen. Dafür existiert eine Reihen von kommerziellen Produkten, die speziell für Intel-Chips ausgelegt sind, z.B. ein eigener Compiler, eine MPI-Implementierung sowie die \textit{Intel Math Kernel Library} (MKL). Zudem wurde 2015 der zweitgrößte FPGA-Produzent Altera gekauft. Um diese Sparten nun zu verbinden, fördert Intel zur Zeit die Entwicklung von \textit{oneAPI}. Dabei handelt es sich um ein High-Level C++-\Gls{API}, das auf \textit{Data Parallel C++} (dpcpp) und \textit{Sycl} aufbaut. Letzteres ist selbst ein C++\Gls{API} für OpenCL.
 	
-	\url{https://software.intel.com/en-us/oneapi}
+	Ein Programm besteht aus drei verschiedenen Teilen. Die sogenannte \textit{Application Scope} ähnelt stark OpenCL. Dabei werden auf dem Host Plattform und Device ausgewählt sowie Buffer erstellt. Dann wird eine \Gls{Command Queue} erstellt. Mit dem Befehl \li`submit` werden dieser ein \Gls{Handle}, eine Folge von Bufferkopien und entsprechende Modifikatoren sowie der \Gls{Kernel}code übergeben.
 	
 	\begin{lstlisting}[caption=oneAPI]
 	#include<vector>
 	#include<CL/sycl.hpp>
+	#define SIZE ...
 
 	namespace sycl = cl::sycl;
 	
 	...
 
 		std::array<int, SIZE> a, b, c;
+		...
 	
 		sycl::range<1> a_size{SIZE};
 		
@@ -19,6 +22,10 @@
 		
 		sycl::default_selector device_selector;
 		sycl::queue d_queue(device_selector);
+		
+		sycl::buffer<int, 1>  a_device(a.data(), a_size);
+		sycl::buffer<int, 1>  b_device(b.data(), a_size);
+		sycl::buffer<int, 1>  c_device(c.data(), a_size);
 		
 		d_queue.submit(
 			[&](sycl::handler &cgh) 
@@ -37,3 +44,12 @@
 			}
 		);
 		\end{lstlisting}
+
+		In diesem Beispiel umfasst die \textit{Application Scope} die Zeilen eins bis 22. Der Befehl \li`submit` von Zeile 24 bis 39 wird als \textit{Command Group Scope} bezeichnet. Dieser enthält von Zeile 32 bis 37 die \textit{\Gls{Kernel} Scope}. Das Ziel ist hier maximales heterogenes Computing und Portierbarkeit des Codes. Der Anwender kann bei der Deviceabfrage zwischen CPU, GPU und FPGA frei wählen. Die Parallelisierung für die entsprechende Architektur geschieht dann automatisch. Es ist geplant, die Intel MKL auch für GPU und Altera FPGAs zu portieren. Wird dann eine API-Funktion für bestimmte Devices aufgerufen, soll automatisch die richtige Architektur in der MKL ausgewählt werden. Es existiert bereits eine Portierung von Tensorflow, um damit maschinelles Lernen mit höheren Python-\Glspl{API} zu ermöglichen. Kompiliert werden solche Programme mit dem Intel dpc++ Compiler:\\
+
+		\begin{center} 
+			\li`dpc++ <name>.cpp -lsycl -lOpenCL`
+		\end{center}
+		
+		 Der offizielle Release ist erst für 2021 geplant. Jedoch lässt sich eine Betaversion unter \url{https://software.intel.com/en-us/oneapi} herunterladen oder sogar mittels Paketmanager installieren. Diese Installation entält die benötigten Compiler, eine OpenCL Version, eine Implementierung von Sycl sowie Profiling Tools, die auch für einfache OpenCL Programme genutzt werden können. Die Betaversion der FPGA-Implementierung kann nur nach Registrierung seperat unter \url{https://software.intel.com/en-us/oneapi/fpga} heruntergeladen werden. Eine detailliertere Einführung gibt der \textit{Intel oneAPI Prgramming Guide}. \autocite{oneapi}
+		
