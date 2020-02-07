@@ -1,5 +1,5 @@
 	\chapter{OpenACC v.s. OpenMP}
-	Um die bisher genannten Konzepte zu vereinfachen, existieren seit einigen Jahren Bestrebungen, Compiler zu entwickeln, die ohne das explizite Programmieren von \Glspl{Kernel} bestimmte Teile des Programms automatisch in parallelen Maschinencode übersetzen. OpenMP ist eine Library für Thread-paralleles Programmieren angewandt auf Systeme mit shared Memory, also im Wesentlichen Prozessoren mit mehreren Kernen und gemeinsamen Speicher. OpenACC ist ein Programmierstandard der Portland Group, der ein ähnliches Konzept verfolgt. Mittels Compileranweisungen (\li`#pragma`) zeichnet man Regionen zur Parallelisierung aus und gibt lediglich Hinweise für Optimierungen an. Der Compiler versucht dann eigenständig diesen Teil des Codes plattformunabhängig wahlweise in paralleles Assembly oder \Gls{NVPTX} zu übersetzen. Das Projekt läuft unter dem Slogan \textit{More Science, Less Programming}. Der Programmierer soll mit HPC möglichst wenig konfrontiert werden und damit mehr Zeit für die Entwicklung wissenschaftlicher Applikationen haben. Dieser Gewinn an Funktionalität ist allerdings nur auf Kosten von Performance möglich. Selbst die Entwickler gehen von einem Leistungsverlust gegenüber CUDA von etwa 30\% aus. Die Portland Group wurde 2013 von der Nvidia Corporation gekauft.
+	Um die bisher genannten Konzepte zu vereinfachen, existieren seit einigen Jahren Bestrebungen, Compiler zu entwickeln, die ohne das explizite Programmieren von \Glspl{Kernel} bestimmte Teile des Programms automatisch in parallelen Maschinencode übersetzen. OpenMP ist eine Library für thread-paralleles Programmieren angewandt auf Systeme mit shared Memory, also im Wesentlichen Prozessoren mit mehreren Kernen und gemeinsamen Speicher. 2012 haben sich einige Programmierer für ein neues Projekt abgespaltet: OpenACC ist ein Programmierstandard der \textit{Portland Group}, der ein ähnliches Konzept verfolgt. Mittels Compileranweisungen (\li`#pragma`) zeichnet man Regionen zur Parallelisierung aus und gibt lediglich Hinweise für Optimierungen an. Der Compiler versucht dann eigenständig diesen Teil des Codes plattformunabhängig wahlweise in paralleles Assembly oder \Gls{NVPTX} zu übersetzen. Das Projekt läuft unter dem Slogan \textit{More Science, Less Programming}. Der Programmierer soll mit HPC möglichst wenig konfrontiert werden und damit mehr Zeit für die Entwicklung wissenschaftlicher Applikationen haben. Dieser Gewinn an Funktionalität ist allerdings nur auf Kosten von Performance möglich. Selbst die Entwickler gehen von einem Leistungsverlust gegenüber CUDA von etwa 30\% aus. Die Portland Group wurde 2013 von der \textit{Nvidia Corporation} gekauft.
 	
 	Seit Version 4.5 unterstützt OpenMP ebenfalls Offloading, also das Verschieben von Daten in den Speicher der GPU.
 	 
@@ -8,6 +8,7 @@
 		
 			\subsection{Loops}
 			Zunächst wird ein Teil des Codes, der als parallelisierbar erkannt wurde, mit einem Pragma und einem extra Scope ausgezeichnet. Es folgt ein spezielles Pragma für die Parallelisierung einer Schleife innerhalb dieser Scope. 
+			
 			\begin{lstlisting}[caption=OpenACC: Loops]
 			#pragma acc parallel
 			{
@@ -38,9 +39,9 @@
 			\end{table}
 		
 			\subsection{Speicherallozierungen}
-			Zur Berechnung mittels GPU müssen Daten in den Speicher der GPU verschoben werden. Um dies zu umgehen, kann pinned Memory verwendet werden. Dies muss beim Kompilieren jedoch angegeben werden (siehe \ref{komp}). Vor Eintreten in eine parallele Region gibt man dem Compiler einen Hinweis, welche Arrays auf die GPU kopiert werden sollen (\li`copyin`) und welche erstellt werden müssen (\li`create`). Am Ende der Region muss angegeben werden, welche Daten die GPU verlassen (\li`copyout`) und welcher Speicher freigegeben wird (\li`delete`). Dabei unterstützt OpenACC Array Slicing ähnlich Python:\\
-			\li`copy(array[starting_index:length])`\\
-			\li`copy` erstellt Speicher, falls nötig, und kopiert dann explizit.
+			Zur Berechnung mittels GPU müssen Daten in den Speicher der GPU verschoben werden. Um dies zu umgehen, kann pinned Memory verwendet werden. Dies muss beim Kompilieren jedoch angegeben werden (siehe \ref{komp}). Vor Eintreten in eine parallele Region gibt man dem Compiler einen Hinweis, welche Arrays auf die GPU kopiert werden sollen (\li`copyin`) und welche erstellt werden müssen (\li`create`). Am Ende der Region muss angegeben werden, welche Daten die GPU verlassen (\li`copyout`) und welcher Speicher freigegeben wird (\li`delete`). Dabei unterstützt OpenACC Arrayslicing ähnlich Python:\\
+			\li`copyin(array[starting_index:length])`\\
+			\li`copy` erstellt Speicher (falls nötig) und kopiert dann explizit.
 			
 			\begin{lstlisting}[caption=OpenACC: Speicherverwaltung]
 			#pragma acc enter data copyin(a[0:N],b[0:N]) create(c[0:N])
@@ -52,6 +53,7 @@
 			\end{lstlisting}
 			
 			Ein bekanntes Beispiel ist die Lösung der stationären 2d Wärmeleitungsgleichung. Jeder neue Gitterpunkt ist der Mittelwert der Nachbarpunkte:
+			
 			\begin{lstlisting}[caption=OpenACC: Wärmeleitungsgleichung]
 			...
 			
@@ -62,7 +64,7 @@
 			{
 				error = 0.0f;
 				
-				#pragma acc parallel loop reduction(max:err) \
+				#pragma acc parallel loop reduction(max:err)
 					copyin(A[0:n*m]) copy(Anew[0:n*m])
 				for(intj = 1; j < n-1; ++j) 
 				{
@@ -117,6 +119,7 @@
 			
 			\subsection{Structs und Klassen}
 			Befehle zum Kopieren oder zum Löschen lassen sich auch direkt in einer Datenstruktur verbauen.
+			
 			\begin{lstlisting}[caption=OpenACC: C-Structs]
 			typedef struct 
 			{
@@ -139,6 +142,7 @@
 			\end{lstlisting}
 			
 			In C++ können diese Anweisungen sogar im Konstruktor oder Destruktor einer Klasse verwendet werden.
+			
 			\begin{lstlisting}[caption=OpenACC: C++-Klassen]
 			class vector 
 			{
@@ -164,6 +168,7 @@
 			\end{lstlisting}
 
 			Aus design-technischen Gründen (Encapsulation) empfiehlt es sich, für ein update-Pragma einen Wrapper als Member Funktion zu programmieren:
+			
 			\begin{lstlisting}[caption=OpenACC: Update Member-Funktion]
 			void accUpdateSelf() 
 			{
@@ -178,6 +183,7 @@
 			\newpage
 			\subsection{Fortgeschrittenes}
 			Folgen zwei Schleifen aufeinander, was oft bei mehrdimensionalen Daten der Fall ist, lässt sich eine bestimmte Anzahl davon zu einer zusammenfügen:
+			
 			\begin{lstlisting}[caption=OpenACC: Loop Collapse]
 			#pragma acc parallel loop collapse(2)
 			for(int i = 0; i < 4; ++i) 
@@ -186,6 +192,7 @@
 			\end{lstlisting}
 			
 			Tiles entsprechen in etwa einem 2D \Gls{Block} in CUDA:
+			
 			\begin{lstlisting}[caption=OpenACC: Tile]
 			#pragma acc kernels loop tile(2,2)
 			for(int x = 0; x < 4; ++x)
@@ -197,7 +204,8 @@
 			}
 			\end{lstlisting}
 			
-			\Glspl{Block} in CUDA entsprechen sogenannten \Glspl{Gang} in OpenACC. \Glspl{Warp} entsprechen \Glspl{Worker}, \Glspl{Thread} entsprechen \Glspl{Vector}. Für alle drei lässt sich explizit eine Zahl angeben. Dann kann eine Schleife für eine dieser Gruppen markiert werden.
+			\Glspl{Block} in CUDA entsprechen sogenannten \enquote{\Glspl{Gang}} in OpenACC. \Glspl{Warp} entsprechen \enquote{\Glspl{Worker}}, \Glspl{Thread} entsprechen \enquote{\Glspl{Vector}}. Für alle drei lässt sich explizit eine Zahl angeben. Dann kann eine Schleife für eine dieser Gruppen markiert werden.
+			
 			\begin{lstlisting}[caption=OpenACC: Gangs Workers Vectors]
 			#pragma acc parallel num_gangs(2) num_workers(2) vector_length(32)
 			{
@@ -212,6 +220,7 @@
 			
 		\section{OpenACC und CUDA}
 		Bei OpenACC geht es um die einfache Parallelisierung von eigenem Code ohne die explizite Programmierung von \Gls{Kernel}. In den meisten Fällen ist man jedoch auf zusätzliche CUDA Librarys angewiesen. Um eine CUDA Funktion mit einem durch ein Pragma kopiertes Array im Device Speicher aufzurufen, muss dieses extra angegeben werden, da der Variablenname lediglich ein Pointer auf Host Memory ist.
+		
 		\begin{lstlisting}[caption=OpenACC/CUDA Zusammenspiel: Host Memory]
 		float* x = ...;
 		int n = ...;
@@ -225,6 +234,7 @@
 		\end{lstlisting}
 
 		Im umgekehrten Fall muss ein Device Pointer für eine Schleife angegeben werden. So kann beispielsweise ein von einer CUDA Funktion modifiziertes Array in OpenACC wie gewohnt ohne eine Kopie benutzt werden.
+		
 		\begin{lstlisting}[caption=OpenACC/CUDA Zusammenspiel: Device Memory]
 		float* x;
 		int n = ...;
@@ -237,6 +247,7 @@
 		\newpage
 		\section{OpenMP und Offloading}
 		Das Beispiel Wärmeleitungsgleichung könnte in OpenMP etwa so aussehen:
+		
 		\begin{lstlisting}[caption=OpenMP: Offloading]
 		...
 		float error;

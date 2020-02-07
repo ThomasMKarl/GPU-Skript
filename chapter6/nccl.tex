@@ -1,2 +1,139 @@
 	\section{Cluster Computing mit NCCL}
-	\url{https://docs.nvidia.com/deeplearning/sdk/nccl-install-guide/index.html}
+		\subsection{Kollektive Operationen}
+		Die Notwendigkeit, Algorithmen für GPU-Cluster zu parallelisieren, motivierte die Implementierung der \textit{Nvidia Collective Communications Library} (NCCL). Diese enthält mehrere Operationen, die auf Daten angewandt werden, die auf bis zu vier GPUs verteilt sind. Dazu wird zunächst ein spezieller Kommunikator definiert. Dann wird das entsprechende Gerät mit der jeweiligen Nummer ausgewählt. Für jedes Gerät wird ein Buffer der selben Größe erstellt sowie ein eigener Stream erstellt.
+	
+		\begin{lstlisting}[caption=NCCL: Buffer und Streams]
+		ncclComm_t comms[4];
+		int nDev = ...; int devs[nDev] = { 0, ... };
+
+		float** sendbuff = (float**)malloc(nDev*sizeof(float*));
+		float** recvbuff = (float**)malloc(nDev*sizeof(float*));
+		cudaStream_t* s = (cudaStream_t*)malloc(sizeof(cudaStream_t)*nDev);
+		for (int i = 0; i < nDev; ++i) {
+			cudaSetDevice(i);
+			cudaMalloc(sendbuff + i, size * sizeof(float));
+			cudaMalloc(recvbuff + i, size * sizeof(float));
+			cudaStreamCreate(s+i);
+		}
+		\end{lstlisting}
+	
+		Nach Kopie der Daten kann der Kommunikator initialisiert werden. In diesem Fall werden die Nummern der Geräte in \li`devs` in das Kommunikator-Array eingetragen. Folgende kollektiven Operationen stehen zur Verfügung:
+	
+		\begin{itemize}
+		\item \textbf{\textit{All Reduce}}: Eine Reduktion, bei der das Ergebnis in jedem Element des Outputarrays bereit steht.
+	
+		\item \textbf{\textit{Broadcast}}: Kopiert ein Array eines Geräts auf alle anderen.
+	
+		\item \textbf{\textit{Reduce}}: Wie \textit{All Reduce}, aber das Ergebnis beschränkt sich auf den Outputbuffer eines einzigen Geräts.
+	
+		\item \textbf{\textit{All Gather}}: Auf jedem Gerät wird die selbe Anzahl an Werten von jedem Gerät aggregiert. Der Output wird nach Index des Geräts geordnet.
+	
+		\item \textbf{\textit{Reduce Scatter}}: Wie \textit{Reduce}, aber das Ergebnis wird in Blöcken auf alle Geräte verteilt. Jedes Gerät erhält einen Teil der Daten basierend auf dessen Index.
+		\end{itemize}
+	
+		\begin{lstlisting}[caption=NCCL: Multi-Device Reduktion]
+		ncclCommInitAll(comms, nDev, devs);
+
+		ncclGroupStart();
+		for(int i = 0; i < nDev; ++i)
+		{
+			ncclAllReduce((const void*)sendbuff[i], (void*)recvbuff[i], size, 
+				ncclFloat, ncclSum, comms[i], s[i]);
+		}
+		ncclGroupEnd();
+		\end{lstlisting}
+	
+		In diesem konkreten Beispiel wird für jedes Device die Maximumsreduktion auf den jeweiligen Buffern ausgeführt. Nach dem Aufruf von \li`ncclGroupEnd` steht das Gesamtergebnis in jedem Element der Outputbuffer bereit. Anschließend wird jedes Gerät synchronisiert.
+		
+		\newpage
+	 
+		\begin{lstlisting}[caption=NCCL: Synchronisation und Cleanup]
+		for(int i = 0; i < nDev; ++i) 
+		{
+			cudaSetDevice(i);
+			cudaStreamSynchronize(s[i]);
+		}
+
+		for(int i = 0; i < nDev; ++i) 
+		{
+			cudaSetDevice(i);
+			cudaFree(sendbuff[i]);
+			cudaFree(recvbuff[i]);
+		}
+
+		for(int i = 0; i < nDev; ++i)
+			ncclCommDestroy(comms[i]);
+		\end{lstlisting}    
+	
+		Neben der Freigabe der Buffer müssen zusätzlich die Kommunikatoren zerstört werden. Eine genauere Auflistung der Operationen sowie die Handhabung der Kommunikatoren kann im Handbuch {\small \url{https://docs.nvidia.com/deeplearning/sdk/nccl-developer-guide/docs/index.html}}\\ nachgelesen werden.
+	
+		\subsection{Device Abfrage mit MPI}
+		Die genannten Operationen können nur auf maximal vier Geräte angewandt werden. Cluster bestehen jedoch aus hunderten GPUs. Typischerweise werden jeweils vier GPUs zusammengefasst und von einem Prozessor verwaltet. Zur Kommunikation dieser Prozessoren wir dann das sogenannte \textit{Message Passing Interface} (MPI) angewandt. Dabei handelt es sich um eine ganz eigene Art der Parallelisierung und soll daher hier nicht tiefer behandelt werden. Im Prinzip führt man dasselbe Programm auf allen Prozessoren unter Angabe von Hostnamen oder Nodes aus. In diesem Programm wird nach Initialisierung jedem Prozess eine Nummer (\enquote{Rank}) zugeordnet. Der nachfolgende Code wir dann von jedem Prozessor exakt zeitgleich ausgeführt. So kann jeder Prozessor seine Devices nacheinander unabhängig von den anderen abfragen.
+		
+		\newpage
+		
+		\begin{lstlisting}[caption=Device Abfrage mit MPI]
+		MPI_Init(...);
+   
+		int world_size;
+		MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+		int world_rank;
+		MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
+		char processor_name[MPI_MAX_PROCESSOR_NAME];
+		int name_len;
+		MPI_Get_processor_name(processor_name, &name_len);
+
+		int deviceCount;
+		cudaGetDeviceCount(&deviceCount);
+		cudaDeviceProp deviceProp;
+		for(uint device = 0; device < deviceCount; ++device)
+		{
+			cudaGetDeviceProperties(&deviceProp, device);
+			printf("Host %s with rank %d (of %d) has %d device(s). 
+				Its device #%d is %s and has compute capability %d.%d.\n", 
+				processor_name, world_rank, world_size, deviceCount, 
+				device+1, deviceProp.name, deviceProp.major, deviceProp.minor);
+		}
+    
+		MPI_finalize();
+	    \end{lstlisting}
+    
+    	Über den Rank kann ein Prozessor eine einzelne Aufgabe erfüllen, die nur für ihn bestimmt ist. Beispielsweise können zwei Prozesse direkt Daten miteinander austauschen. Mit einem GPU-Build von MPI ist es sogar möglich, explizit GPU-Memory zu senden. Dazu erstellt ein Prozess (0) einen Buffer für die Daten auf der Grafikkarte. Der andere Prozess (1) erstellt einen Buffer der selben Größe im Speicher seiner Grafikkarte. Prozess 0 kopiert die Daten. Dann sendet er explizit diese Daten an Rank 1. Rank 1 muss diese explizit abnehmen und speichert diese dabei in seinem Buffer ab. Zum Schluss können die Daten auf den neuen Host kopiert werden.
+    	
+    	\newpage
+    	
+	    \begin{lstlisting}[caption=Austausch von Device Memory mit MPI] 
+    	MPI_Init(...);
+    
+    	int rank;   
+	    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    
+    	int size = ...;
+	    if(rank == 0) { int *send_buf; cudaMalloc(&send_buf, size*sizeof(int)); }
+    	if(rank == 1) { int *recv_buf; cudaMalloc(&recv_buf, size*sizeof(int)); }
+    
+    	...
+    
+    	if(rank == 0) 
+    		cudaMemcpy(send_buf, ..., size*sizeof(int), cudaMemcpyHostToDevice);   
+	    MPI_Send(send_buf, size, MPI_INT, 1, 0, MPI_COMM_WORLD);
+	    ...
+    	MPI_Recv(recv_buf, size, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    	if(rank == 1) 
+    		cudaMemcpy(..., recv_buf, size*sizeof(int), cudaMemcpyDeviceToHost);
+    		
+    	...
+    
+	    MPI_finalize();
+    	\end{lstlisting}
+    	
+    	\subsection{GPU-Cluster}
+    	Auf einem GPU-Cluster werden typischerweise beide Methoden kombiniert. Ein einzelnes Programm wird auf beliebig vielen Hosts ausgeführt. Die einzelnen Prozesse können mittels MPI explizit kommunizieren. Jeder dieser Prozesse kann frei zwischen bis zu vier Grafikkarten wählen und parallele Algorithmen unter Zuhilfenahme von NCCL ausführen. MPI ermöglicht das freie Senden der Daten ohne zusätzliches Buffering im Hostmemory. Die GPUs können mit PCIe oder NVlink angebunden sein. Im letzteren Fall sogar direkt untereinander. Die Prozessoren sind in einem Highspeed-Netzwerk (z.B. mit Infiniband) miteinander verbunden. Da diese Prozessoren normalerweise über mehrere Kerne verfügen, können diese, während die GPUs beschäftigt sind, mittels thread-parallelem Programmieren zusätzlich Aufgaben erledigen. So kann die Hardware vollständig ausgelastet werden.
+    	
+    	Das NCCL-Handbuch gibt unter\\ 
+    	\url{https://docs.nvidia.com/deeplearning/sdk/nccl-developer-guide/docs/mpi.html} \\
+    	Empfehlungen ab zur Verwendung von MPI mit NCCL. Ein Beispiel dafür ist unter \\
+    	\url{https://docs.nvidia.com/deeplearning/sdk/nccl-developer-guide/docs/examples.html#example-3-multiple-devices-per-thread} \\
+    	zu finden.
