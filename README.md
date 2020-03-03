@@ -1,3 +1,11 @@
 # Scientific-Computing-for-GPUs
-A Skript and Code examples from "Wissenschaftliches Rechnen auf Grafikkarten", 
-a lecture from winter term 2019/20 at University of Regensburg.
+Lecture Notes from "Wissenschaftliches Rechnen auf Grafikkarten", 
+a lecture held at University of Regensburg.
+
+folder "exercises" contains an exercise sheet
+
+folder "libdoc" contains documentaion of rz412.ur.de:/temp/kat10110
+
+download UR logo from https://www.uni-regensburg.de/verwaltung/corporate-design/index.html and copy to root folder
+see "Makefile" for compilation
+requires TeXLive >= 2018 (or TeXLive >= 2016 + URPagestyles from https://github.com/TeXhackse/urcls)
