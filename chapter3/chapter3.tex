@@ -500,13 +500,42 @@
 		\subsection*{\textcolor{red}{Divergenz}}
 		Synchronisation ist nich nur aufgrund von Abhängigkeiten in Algorithmen notwendig. \Glspl{Thread} innerhalb eines \Glspl{Warp} müssen zur selben Zeit die selben Instruktionen erhalten. Ist dies im Programm nicht der Fall, z.B. durch if-else Verzweigungen, müssen diese Anweisungen serialisiert werden. Führen innerhalb eines jeden \Glspl{Warp} die \Glspl{Thread} paarweise unterschiedliche Instruktionen aus, so verliert man den Faktor 32 in der \Gls{Performance}. Diese sogenannte Divergenz kann nach jeder if-Anweisung oder abgebrochener Schleife auftreten und sollte so schnell wie möglich durch Synchronisierung aufgelöst werden. 
 		
-		\section{gro\ss e Datenmengen}
-		Sollte die Date, die für eine bestimmte Rechnung nötig sind, zu groß für den \Gls{global Memory} der GPU, so muss das Problem in kleiner aufgeteilt werden. Bei der Vektoraddition ist dies kein Problem, da der Input in kleiner Teile geteilt und einzeln addiert werden kann. 
+		\section{gro\ss e Datenmengen}\label{data}
+		Sollten die Daten, die für eine bestimmte Rechnung nötig sind, zu groß für den \Gls{global Memory} der GPU sein, so muss das Problem in kleinere Einheiten aufgeteilt werden. Bei der Vektoraddition ist dies kein Problem, da der Input in kleinere Teile geteilt und einzeln addiert werden kann. 
 		
-		Andere Probleme erfordern aber die kompletten Daten, zum Beispiel die Matrismultiplikation. Bei komplexeren Problemen wird es zur Hauptaufgabe des Programmierers, den Algorithmus so anzupassen, dass dieser aufgeteilt werden kann und die verschiedenen \Glspl{Kernel} miteinenader wechselwirken können. Ein einfaches Beispiel dafür wäre die Summenreduktion, bei der von Teilarrays die Summe gebildet wird, und diese Teilsummen dann wieder parallel aufsummiert werden (siehe Abschnitt \ref{red}). 
+		Andere Probleme erfordern aber die kompletten Daten, zum Beispiel die Matrixmultiplikation. Bei komplexeren Problemen wird es zur Hauptaufgabe des Programmierers, den Algorithmus so anzupassen, dass dieser aufgeteilt werden kann und die verschiedenen \Glspl{Kernel} miteinenader wechselwirken können. Ein einfaches Beispiel dafür wäre die Summenreduktion, bei der von Teilarrays die Summe gebildet wird und diese Teilsummen dann wieder parallel aufsummiert werden (siehe Abschnitt \ref{red}). 
 		
-		Da nun für die Daten nur ein zu kleines Array bereitsteht, in das mmer wieder geschrieben werden muss, müssen die Anweisungen wieder in Reihe geschehen. Allerdings kann sich die Kopie zurück auf den Host und die folgende Kopie auf das Device immer noch überlappen. Folgendes Beispiel modifiziert jenes aus Abschnitt \ref{streams} so, dass alle Operationen auf Teilarrays in Order geschehen, die Kopieranweisungen aber überlappen. Dazu werden alle Operationen verschiedenen \Glspl{Stream} zugeordnet, aber explizite Synchronisierung verhindert eine verfrühte Addition oder Kopie.
+		Da nun für die Daten nur ein zu kleines Array bereitsteht, in das mmer wieder geschrieben werden muss, müssen die Anweisungen wieder in Reihe geschehen. Allerdings können sich die Kopie zurück auf den Host und die folgende Kopie auf das Device immer noch überlappen. Folgendes Beispiel modifiziert jenes aus Abschnitt \ref{streams} so, dass alle Operationen auf Teilarrays in Reihe geschehen, die Kopieranweisungen aber überlappen. Dazu werden alle Operationen verschiedenen \Glspl{Stream} zugeordnet, aber explizite Synchronisierung verhindert eine verfrühte Addition oder Kopie.
 		
+		........
+		
+		\subsection*{Unified (Virtual) Memory}
+		Das manuelle Kopieren von Speicher ist oft sehr mühselig. Daher hat Nvidia den Grafiktreiber soweit entwickelt, dass dies mittlerweile weitestgehend automatisch möglich ist. Dafür wurde eine spezielle Art der virtuellen Speicherverwaltung implementiert, bei der CPU und GPU Speicher in den selben Adressraum gemappt wird. 
+		Man erstellt im Programm dazu lediglich mittles 
+		
+		\li`float ∗d_A; cudaMallocManaged(&d_A, size);` 
+		
+		einen einzelnen Pointer, der sowohl von GPU als auch von CPU aus erreichbar ist. Alternativ lässt sich das Keyword \li`__managed__` für globale Arrays (auch in Verbindung mit \li`__device__`) benutzen.
+		
+		\textbf{Begriffsklärung:}\\
+		Da es sich um einen einzelnen Pointer handelt, ist der Begriff \textit{Unified Memory} theoretisch gerechtfertigt. Es handelt sich jedoch nur um eine Art von virtueller Speicherverwaltung. \enquote{Virtuell} bezieht sich dabei auf den Speicher, nicht auf die Verwaltung. Bei \textit{Unified Memory} spricht man üblicherweise von Systemen, in denen sich CPU und GPU physisch den selben Speicher teilen. Dies ist z.B. oft bei Einplatinencomputern der Fall. Man spricht von einer \textit{Unified Memory Architecture (UMA)}. Geht es bei dem Zugriff um die parallele Nutzung innerhalb eines symmetrischen Multiprozessorsystems, so spricht man von \textit{Uniform Memory Access}, ebenfalls \textit{UMA}. Aus offensichtlichen Gründen wird hierbei auch von \textit{Shared Memory} gesprochen. Dies sollte aber auf keinen Fall mit CUDA \Gls{shared Memory} verwechselt werden.
+		
+		\bigskip
+		
+		Wird solch ein \enquote{managed memory} auf einer prä-Pascal Karte alloziert, so handelt es sich dabei komplett und zu jedem Zeitpunkt um GPU Speicher. Versucht die CPU nun auf diese Elemente zuzugreifen, tritt ein \textit{page fault} auf. Durch verborgenen Prozesse (ausgeführt durch den Grafiktreiber) werden nun die benötigten Daten vom GPU in den CPU Speicher in Einheiten von Memory Pages (4kB) kopiert. Der Treiber garantiert Kohärenz zwischen den Speichern, beachtet aber keine Dataraces.
+		
+		Auf einer Pascal oder Volta Karte wird der Speicher dort alloziert, wo er zuerst initialisiert wird. Diese moderneren GPUs beherrschen ebenfalls Pagefaulting. Sollte die Größe der Allozierung den Speicher der GPU überschreiten wird also kein Fehler geworfen. Da fast nie die komplette Datenmenge im Speicher der GPU vorhanden sein muss, braucht der Grafiktreiber lediglich die benötigten Daten zu kopieren. Das Synchronisieren der \Glspl{Thread} läuft automatisch. Natürlich gibt es durch diese Kopien einen unnötigen Overhead. Außerdem sind GPUs eher für große Datenmengen optimiert. Daher sollte man bei dieser Methode von einem Performanceverlust von etwa 10 bis 20\% ausgehen. 
+		
+		Da die GPU auf Daten normalerweise sehr oft operiert, ohne dass die CPU diese benötigt, lässt sich der Overhead minimieren:
+		\begin{itemize}
+		\item Initialisieren der Daten in einem eigenen \Gls{Kernel} anstatt im Speicher der CPU
+		\item Mehrmaliges Ausführen des \Gls{Kernel}s und Analysieren der mittleren Laufzeit mit \li`nvprof`
+		\item Explizites Kopieren: Um die \textit{Page Migration Engine} explizit zu benutzen existiert der Befehl \li`cudaMemPrefetchAsync(d_A, size, deviceID, stream)`. Ein Wert von -1 bei der deviceID bezeichnet die CPU.
+		\end{itemize}
+		Genauere Informationen unter \url{https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html#group__CUDART__MEMORY_1ge8dc9199943d421bc8bc7f473df12e42}.
+		
+		Außerdem kann mittels \li`cudaMemAdvise(d_A, size, advice, deviceID)` das Verhalten der Engine geführt werden. Mehr unter \url{https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html#group__CUDART__MEMORY_1ge37112fc1ac88d0f6bab7a945e48760a}.
+
 		\section{Datentypen}
 		Auf GPUs existiert ein 16 Bit Datentyp mit halber Präzision. Benutzt man die in CUDA eingebauten arithmetischen Funktionen, kann man die Performance dadurch weiter verbessern.			
 		\begin{lstlisting}[caption=Half Precision]
