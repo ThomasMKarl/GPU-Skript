@@ -30,7 +30,7 @@ skript: skript.tex $(CHAPTERS) $(DATA)
 libdoc: libdoc/libdoc.tex
 	$(LATEX) libdoc/libdoc.tex
 	$(LATEX) libdoc/libdoc.tex
-	mv libdoc.pdf -f libdoc
+	mv libdoc.pdf -f libdoc/
 
 exercise: exercise/exercise.tex
 	$(LATEX) exercise/exercise.tex

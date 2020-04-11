@@ -1,6 +1,6 @@
 	\section{Random Number Generators}
 		\subsection{cuRAND}
-		cuRAND ist eine Bibliothek zur Generierung von Pseudo- und Quasi-Zufallszahlen. Sie stellt ein \Gls{API} sowohl für Device als auch für Host zur Verfügung. Zur Benutzung inkludiert man den Header \textit{curand.h} für Host und \textit{curand{\_}kernel.h} für Device. Zusätzlich muss mit \textit{libcurand} gelinkt werden. Um gegen die statische Version zu linken wir folgendes Kommando empfohlen: 
+		cuRAND ist eine Bibliothek zur Generierung von Pseudo- und Quasi-Zufallszahlen. Sie stellt ein \Gls{API} sowohl für Device als auch für Host zur Verfügung. Zur Benutzung inkludiert man den Header \textit{curand.h} für Host und \textit{curand{\_}kernel.h} für Device. Zusätzlich muss mit \textit{libcurand} gelinkt werden. Um gegen die statische Version zu linken wird folgendes Kommando empfohlen: 
 		
 		\li`g++ myCurandApp.c -lcurand_static -lculibos -lcudart_static -lpthread -ldl`
 		
