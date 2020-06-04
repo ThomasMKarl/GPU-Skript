@@ -18,3 +18,4 @@ libdoc/*.pdf
 *.run.xml
 *.glg
 *.gls
+*.tex.bak
