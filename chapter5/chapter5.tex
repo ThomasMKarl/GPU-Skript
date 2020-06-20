@@ -1,44 +1,48 @@
 	\chapter{Radeon Open Compute}
-	Nach dem großen Erfolg von CUDA entschloss sich AMD zur Entwicklung einer eigenen open-source GPU-Plattform für Grafikkarten. Diese ist unter dem Namen \textit{Radeon Open Compute} (ROC) bekannt. Sie spiegelt im Wesentlichen den Programmierstil von CUDA wieder und lässt sich leicht portieren. Die entsprechende Programmiersprache heißt \textit{hip}. Unter \url{https://github.com/ROCm-Developer-Tools/HIP} stehen die Quelldateien für einen eigenen Build bereit. Für gängige Linux-Betriebssysteme existieren jedoch Pakete für den Paketmanager.
+	Nach dem großen Erfolg von CUDA entschloss sich AMD zur Entwicklung einer eigenen open-source GPU-Plattform für Grafikkarten. Diese ist unter dem Namen \textit{Radeon Open Compute} (ROC) bekannt. Sie spiegelt im Wesentlichen den Programmierstil von CUDA wieder und lässt sich leicht portieren. Die entsprechende Programmiersprache heißt \textit{hip}. Unter \href{https://github.com/ROCm-Developer-Tools/HIP}{\small https://github.com/ROCm-Developer-Tools/HIP} stehen die Quelldateien für einen eigenen Build bereit. Für gängige Linux-Betriebssysteme existieren jedoch Pakete für den Paketmanager.
 	
 	Neben dem AMD Compiler \textit{hipcc} lässt sich im Backend weiterhin \textit{nvcc} verwenden. Folglich ist hip-Code portierbar für AMD und Nvidia GPUs. Entwickler sollen mit diesem Argument motiviert werden, ihre alte Codebasis mit beigefügten Skripten automatisch nach hip zu portieren und dann wahlweise wieder in \Gls{NVPTX} zu kompilieren. Nach diesem Muster wurden die meisten HPC-Librarys von Nvidia bereits portiert und können teilweise als drop-in Ersatz genutzt werden. Wenn man die entsprechenden Pfade in der Compiler-Toolchain ersetzt, lassen sich auch größere Projekte in Sekunden portieren und gleichzeitig in Nvidia- oder AMD-Code übersetzen. Das einfache Beispiel der Vektoraddition aus Kapitel drei könnte mit dem Aufruf \li`hipify-perl name.cu > name.hip.cpp` portiert werden und würde dann so aussehen:
 	
 	\begin{lstlisting}[caption=Radeon Open Compute]
 	__global__ void VecAdd(float* A, float* B, float* C, int N)
 	{
-    	int i = hipBlockDim.x * hipBlockIdx.x + hipThreadIdx.x;
-	    if(i < N) C[i] = A[i] + B[i];
+        int i = hipBlockDim.x * hipBlockIdx.x + hipThreadIdx.x;
+        if(i < N) C[i] = A[i] + B[i];
 	}
             
 	int main()
 	{
-    	int N = ...;
+        int N = ...;
 	    size_t size = N * sizeof(float);
 		
 		...
 		
 	    float* d_A; hipMalloc(&d_A, size);
-    	float* d_B; hipMalloc(&d_B, size);
+    	    float* d_B; hipMalloc(&d_B, size);
 	    float* d_C; hipMalloc(&d_C, size);
 
 	    hipMemcpy(d_A, h_A, size, hipMemcpyHostToDevice);
-    	hipMemcpy(d_B, h_B, size, hipMemcpyHostToDevice);
+    	    hipMemcpy(d_B, h_B, size, hipMemcpyHostToDevice);
 
-    	int threadsPerBlock = 256;
-    	int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
-    	hipLaunchKernel(VecAdd, blocksPerGrid, threadsPerBlock, 0, 0, 
-    		d_A, d_B, d_C, N);
+    	    int threadsPerBlock = 256;
+    	    int blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock;
+        	hipLaunchKernel(VecAdd, blocksPerGrid, threadsPerBlock, 0, 0, 
+    		    d_A, d_B, d_C, N);
 
-    	hipMemcpy(h_C, d_C, size, hipMemcpyDeviceToHost);
+    	    hipMemcpy(h_C, d_C, size, hipMemcpyDeviceToHost);
    
-    	hipFree(d_A); hipFree(d_B); hipFree(d_C);
+    	    hipFree(d_A); hipFree(d_B); hipFree(d_C);
 
 		...
 	}
 	\end{lstlisting}
 	
-	Es gibt nur zwei Unterschiede zu CUDA. Das Präfix \li`cu` wird durch \li`hip` ersetzt. Diese Funktionen werden in \textit{hip{\_}runtime.h} festgelegt. Außerdem werden die \Gls{Kernel}aufrufe durch die Funktion \li`hipLaunchKernel(<Kernelname>, <dim3: Blöcke>, <dim3 Threads>, <size_t sharedMemorySize>, <hipStream_t: stream>, <ArgumentListe>...);` ersetzt. So lassen sich praktisch alle Funktionen der Cuda Runtime \Gls{API} portieren. Nach Setzen der Umgebungsvariable auf oder zur Steuerung des Backends kann das Beispiel mit \li`hcc name.hip.cpp ...` übersetzt werden. Eine Library (z.B. cufft.h) würde durch das AMD-Pendant ersetzt werden. Theoretisch lassen sich auch cmake-Dateien mit \li`hipify-cmake` automatisch anpassen. Zur Analyse kann \li`rocm-profiler` ähnlich zu \li`nvprof` verwendet werden.
+	Es gibt nur zwei Unterschiede zu CUDA. Das Präfix \li`cu` wird durch \li`hip` ersetzt. Diese Funktionen werden in \textit{hip{\_}runtime.h} festgelegt. Außerdem werden die \Gls{Kernel}aufrufe durch die Funktion 
+	
+	\li`hipLaunchKernel(<Kernelname>, <dim3: Blöcke>, <dim3 Threads>, <size_t sharedMemorySize>, <hipStream_t: stream>, <ArgumentListe>...);` 
+	
+	ersetzt. So lassen sich praktisch alle Funktionen der Cuda Runtime \Gls{API} portieren. Nach Setzen der Umgebungsvariable auf oder zur Steuerung des Backends kann das Beispiel mit \li`hcc name.hip.cpp ...` übersetzt werden. Eine Library (z.B. cufft.h) würde durch das AMD-Pendant ersetzt werden. Theoretisch lassen sich auch cmake-Dateien mit \li`hipify-cmake` automatisch anpassen. Zur Analyse kann \li`rocm-profiler` ähnlich zu \li`nvprof` verwendet werden.
 	
 	Da ROC in Teilen auch OpenCL nutzt, wird bei der Installation automatisch eine weitere OpenCL-Plattform hinzugefügt. Dies ist die aktuelle Implementierung von AMD, da das ursprüngliche AMD-APP SDK nicht mehr zur Verfügung steht.
 	
-	Da die Konzepte von hip lediglich die von CUDA wiederspiegeln, soll hier nicht weiter darauf eingegangen werden. Die grundlegenden Ideen wurden bereits alle behandelt.
+	Da die Konzepte von hip lediglich die von CUDA widerspiegeln, soll hier nicht weiter darauf eingegangen werden. Die grundlegenden Ideen wurden bereits alle behandelt.

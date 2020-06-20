@@ -1,6 +1,6 @@
 	\section{Lineare Algebra}
 		\subsection{cuBLAS und clBLAS}
-		Um für Programmierer das Implementieren von Algorithmen in der linearen Algebra zu erleichtern, wurden in den 70er Jahren in Fortran verschiedenen Matrix- und Vektoroperationen hardwarenah implementiert. Diese Bibliothek ist als \textit{Basic Linear Algebra Subprograms} (BLAS) bekannt. Es exisiteren Wrapper und Portierungen für verschiedene Sprachen.
+		Um für Programmierer das Implementieren von Algorithmen in der linearen Algebra zu erleichtern, wurden in den 70er Jahren in Fortran verschiedenen Matrix- und Vektoroperationen hardwarenah implementiert. Diese Bibliothek ist als \textit{Basic Linear Algebra Subprograms} (BLAS) bekannt. Es existieren Wrapper und Portierungen für verschiedene Sprachen.
 	
 		BLAS besteht aus drei Teilen:
 		\begin{itemize}
@@ -37,9 +37,9 @@
 		...
 		\end{lstlisting}
 		
-		Sobald die Objekte gesetzt wurden, wird ähnlich wie in cuFFT ein \Gls{Handle} erstellt. Dann können auf diesen Objekten bestimmte Operationen ausgeführt werden, deren Namen und Handhabung in Kapitel 2.4 der cuBLAS Dokumentation \autocite{cublasDoc} nachgeschlagen werden können. In den meisten Fällen existieren Funktionen in mehreren Versionen für verschiedenen Präzisionen. Nach Ausführung kann das Objekt zur Ausgabe in den CPU Speicher zurückkopiert werden. Typischerweise implementieren diese Funktionen eine Abfolge von mehreren Operationen, die auf eine spezielle Operation angepasst werden muss.
+		Sobald die Objekte gesetzt wurden, wird ähnlich wie in cuFFT ein \Gls{Handle} erstellt. Dann können auf diesen Objekten bestimmte Operationen ausgeführt werden, deren Namen und Handhabung in Kapitel 2.4 der cuBLAS Dokumentation \autocite{cublasDoc} nachgeschlagen werden können. In den meisten Fällen existieren Funktionen in mehreren Versionen für verschiedenen Präzisionen. Nach Ausführung kann das Objekt zur Ausgabe in den CPU Speicher zurück kopiert werden. Typischerweise implementieren diese Funktionen eine Abfolge von mehreren Operationen, die auf eine spezielle Operation angepasst werden muss.
 		
-		Man betrachte die Berechnung einer Matrixmultiplikation $C = A\cdot B$ einer $m\times n$ Matrix $A$ und einer $n\times m$ Matrix $B$ im allgemeinen Fall für einfache Präzision. Dafür existiert die Funktion \li`cublasSgemm`. Diese implementiert die Abbildung $C \leftarrow \alpha\cdot\textbf{op}(A)\textbf{op}(B) + \beta\cdot C$, wobei op() für transponieren oder konjugieren stehen kann und $\alpha$ bzw. $\beta$ beliebige Skalare sind. Für op() existiert der Datentyp \li`cublasOperation_t` und kann entweder \li`CUBLAS_OP_N` (\enquote{normal}), \li`CUBLAS_OP_T` (\enquote{transponiert}) oder \li`CUBLAS_OP_C` (\enquote{komplex konjugiert}) sein. In diesem Beispiel muss also die Funktion wie folgt gerufen werden: 
+		Man betrachte die Berechnung einer Matrixmultiplikation $C = A\cdot B$ einer $m\times n$ Matrix $A$ und einer $n\times m$ Matrix $B$ im allgemeinen Fall für einfache Präzision. Dafür existiert die Funktion \li`cublasSgemm`. Diese implementiert die Abbildung $C \leftarrow \alpha\cdot\textbf{op}(A)\textbf{op}(B) + \beta\cdot C$, wobei \li`op()` für Transponieren oder Konjugieren stehen kann und $\alpha$ bzw. $\beta$ beliebige Skalare sind. Für \li`op()` existiert der Datentyp \li`cublasOperation_t` und kann entweder \li`CUBLAS_OP_N` (\enquote{normal}), \li`CUBLAS_OP_T` (\enquote{transponiert}) oder \li`CUBLAS_OP_C` (\enquote{komplex konjugiert}) sein. In diesem Beispiel muss also die Funktion wie folgt gerufen werden: 
 		
 		\begin{lstlisting}[caption=cuBLAS: Funktionsaufruf]
 		cublasHandle_t handle;
@@ -64,7 +64,7 @@
 		
 		Es existiert eine von AMD entwickelte Portierung clBLAS für OpenCL. Wie gewohnt ist diese Bibliothek quelloffen und kann unter \url{https://github.com/clMathLibraries/clBLAS} heruntergeladen werden. Auch diese Library wurde für AMD GPUs optimiert, lässt sich aber auch auf anderen Geräten verwenden. Eine Dokumentation steht ebenfalls zur Verfügung \autocite{clblasDoc}. Nach Installation muss der Header \textit{clblas.h} inkludiert und mit \textit{libclBLAS} (und wie gewohnt mit \textit{libOpenCL}) gelinkt werden.
 
-		Zur Benutzung muss eine Initialisierungsfunktion gerufen werden. Matrizen werden ebenfalls im column-major Format in einen Buffer geschrieben. Da sich clBLAS ebenfalls an BLAS orientiert, unterscheiden sich die Namen der Funktionen gegenüber cuBLAS nur im Präfix \enquote{cl}. Nach Ausführen dieser Funktion muss synchronisiert und das Ergebnis zurückkopiert werden.\\ \\
+		Zur Benutzung muss eine Initialisierungsfunktion gerufen werden. Matrizen werden ebenfalls im column-major Format in einen Buffer geschrieben. Da sich clBLAS ebenfalls an BLAS orientiert, unterscheiden sich die Namen der Funktionen gegenüber cuBLAS nur im Präfix \enquote{cl}. Nach Ausführen dieser Funktion muss synchronisiert und das Ergebnis zurück kopiert werden.\\ \\
 		\begin{lstlisting}[caption=clBLAS Beispiel]
 		cl_int err;
 		cl_uint M = ...; cl_uint N = ...;
@@ -117,7 +117,7 @@ der Events.
 
 		Bei diesem Format werden die Werte und deren Indizes in der Matrix nacheinander, ohne Ordnung und zeilenweise abgelegt. Es existieren komplexere Formate, die für bestimmte Algorithmen notwendig sind. Für die Operation aus dem letzten Abschnitt wird beispielsweise das \textit{Block Compressed Sparse Row Format} (BSR) Format benötigt. Die genauen Anforderungen der Formate können in der Dokumentation nachgelesen werden. \cite{cusparseDoc}
 		Für Vektoren ist die Angabe eines zweiten Index natürlich überflüssig. Dichte Vektoren werden als gewöhnliche Arrays gespeichert.
-		\begin{lstlisting}[caption=cuSPARSE: Vector erstellen]
+		\begin{lstlisting}[caption=cuSPARSE: Vektor erstellen]
 		int nnz_vector = ;
 		int    *xIndHostPtr =    (int*)malloc(nnz_vector*sizeof(int));
 		double *xValHostPtr = (double*)malloc(nnz_vector*sizeof(double));
@@ -193,20 +193,22 @@ der Events.
 		\Gls{Handle} und Deskriptor müssen explizit zerstört werden. Wie gewohnt müssen Arrays auf Host und Device freigegeben werden.
 
 		\subsection{cuSOLVER}
-		Es exisitiert eine Reihe von Bibliotheken, die aufbauend auf BLAS die wichtigsten Algorithmen der linearen Algebra implementieren, z.B. QR-Zerlegung oder Eigenwertberechnung. Die bekannteste ist das \textit{Linear Algebra Package} (LAPACK), das in Fortran77 geschrieben wurde (umgeschrieben auf Fortran90) und für die meisten Programmiersprachen portiert wurde. Es existieren hierfür auch \Glspl{API}, z.B. Armadillo oder JLapack.
+		Es existiert eine Reihe von Bibliotheken, die aufbauend auf BLAS die wichtigsten Algorithmen der linearen Algebra implementieren, z.B. QR-Zerlegung oder Eigenwertberechnung. Die bekannteste ist das \textit{Linear Algebra Package} (LAPACK), das in Fortran77 geschrieben wurde (umgeschrieben auf Fortran90) und für die meisten Programmiersprachen portiert wurde. Es existieren hierfür auch \Glspl{API}, z.B. Armadillo oder JLapack.
 		Um für dicht und dünn besetzte Matrizen schnelle Methoden für Berechnungen in der linearen Algebra bereit zu stellen, existiert eine Implementierung der wichtigsten Algorithmen in der Bibliothek cuSOLVER, ein Teil des CUDA Toolkits. Linken und Inkludieren erfolgt wie gewohnt (\textit{cusolver.h}, \textit{libcusolver}). Diese Bibliothek orientiert sich an LAPACK und besteht aus drei Teilen:
 		\begin{itemize}
-		\item \textbf{cuSolverDN: Dense LAPACK} 
+		    \item \textbf{cuSolverDN: Dense LAPACK} 
 		
-		Methoden zur Lösung eines regulären dicht besetzten Gleichungssystems $Ax = b$ (QR- und LU-Zerlegung mit Pivotisierung, Cholesky Zerlegung für symmetrisch/hermitesche Matrizen, Bunch-Kaufmann-Zerlegung für symmetrisch indefinite Matrizen, Singulärwertzerlegung).
+		    Methoden zur Lösung eines regulären dicht besetzten Gleichungssystems $Ax = b$ (QR- und LU-Zerlegung mit Pivotisierung, Cholesky Zerlegung für symmetrisch/hermitesche Matrizen, Bunch-Kaufmann-Zerlegung für symmetrisch indefinite Matrizen, Singulärwertzerlegung).
+
+		    \newpage
+		    
+	        	\item \textbf{cuSolverSP: Sparse LAPACK}
 		
-		\item \textbf{cuSolverSP: Sparse LAPACK}
+		    Methoden zur Lösung eines dünn besetzten Gleichungssystems $Ax = b$, im nicht regulären Fall durch least-square Regression $x = \text{argmin}||Az-b||$. Für symmetrische Matrizen muss eine volle Matrix angegeben werden (Ausnahme: Bei Cholesky-Zerlegung reicht die untere linke Dreiecksmatrix.) Zusätzlich existiert eine Eigenwertzerlegung auf Basis der shift-inverse-power Methode. 
 		
-		Methoden zur Lösung eines dünn besetzten Gleichungssystems $Ax = b$, im überbestimmten Fall durch Regression $x = \text{argmin}||Az-b||$, im unterbestimmten Fall durch Lösen von $A^Tx=b$. Für symmetriche Matrizen muss eine volle Matrix angegeben werden (Ausnahme: Bei Cholesky-Zerlegung reicht die untere linke Dreiecksmatrix.) Zusätzlich existiert eine Eigenwertzerlegung auf Basis der shift-inverse-power Methode. 
+		    \item \textbf{cuSolverRF: Refactorization}
 		
-		\item \textbf{cuSolverRF: Refactorization}
-		
-		Methoden zur schnellen Lösung einer Menge von Gleichungssystemen $A_i x_i = b_i$. Bleibt das sparsity-pattern\footnote{Position der von null verschiedenen Elemente} der Matrizen $A_i$, sowie das Neuordnen zur Pivotisierung und zum Auffüllen während der LU-Zerlegung gleich, ist dieser Teil der Bibliothek anwendbar. Zuerst wird für $i=1$ eine volle LU-Zerlegung durchgeführt. Für die folgenden kann ein LU-Refaktorisierungsalgorithmus verwendet werden.	
+		    Methoden zur schnellen Lösung einer Menge von Gleichungssystemen $A_i x_i = b_i$. Bleibt das sparsity-pattern\footnote{Position der von null verschiedenen Elemente} der Matrizen $A_i$, sowie das Neuordnen zur Pivotisierung und zum Auffüllen während der LU-Zerlegung gleich, ist dieser Teil der Bibliothek anwendbar. Zuerst wird für $i=1$ eine volle LU-Zerlegung durchgeführt. Für die folgenden kann ein LU-Refaktorisierungsalgo-rithmus verwendet werden.	
 		\end{itemize}
 		Jede Operation ist grundsätzlich für die Datentypen \li`float`, \li`double`, \li`cuComplex`, und \li`cuDoubleComplex` implementiert. Für die Funktionen gelten bestimmte Namenskonventionen. Für Dense:
 		
@@ -243,22 +245,18 @@ der Events.
 		cudaMalloc(&d_work, sizeof(float)*lwork);
 		\end{lstlisting}
 		
-		Für die Nutzung der Funktionen muss ein \Gls{Handle} erzeugt und einem \Gls{Stream} hinzugefügt werden. Belegen der Matrizen erfolgt wie gewohnt linearisiert. Allerdings muss danach mit \li`cusolverDnDgetrf_bufferSize` die Größe eines Buffers, der für die Zerlegung notwendig ist, ermittelt werden. Mit dieser Angabe wird dann der Buffer explizit angelegt.
+		Für die Nutzung der Funktionen muss ein \Gls{Handle} erzeugt und einem \Gls{Stream} hinzugefügt werden. Belegen der Matrizen erfolgt wie gewohnt linearisiert. Allerdings muss danach mit \\ \li`cusolverDnDgetrf_bufferSize` die Größe eines Buffers, der für die Zerlegung notwendig ist, ermittelt werden. Mit dieser Angabe wird dann der Buffer explizit angelegt.
 		
 		\begin{lstlisting}[caption=cuSOLVER: LU-Zerlegung]
-		int Ipiv[m];      
-		int info; 
+		int Ipiv[m]; int info; 
 		int *d_Ipiv; cudaMalloc(&d_Ipiv, m*sizeof(int));
 		int *d_info; cudaMalloc(&d_info,   sizeof(int));
 		
 		const int pivot_on = 1;
 		if(pivot_on) 
-			cusolverDnDgetrf(cusolverH, m, m, d_A, lda, 
-			d_work, d_Ipiv, d_info);
+			cusolverDnDgetrf(cusolverH, m, m, d_A, lda, d_work, d_Ipiv, d_info);
 		else          
-			cusolverDnDgetrf(cusolverH, m, m, d_A, lda, 
-			d_work, NULL,   d_info);
-			
+			cusolverDnDgetrf(cusolverH, m, m, d_A, lda, d_work, NULL,   d_info);
 		cudaDeviceSynchronize();
 
 		float LU[lda*m];
@@ -267,9 +265,7 @@ der Events.
 		cudaMemcpy(LU, d_A, lda*m*sizeof(float), cudaMemcpyDeviceToHost);
 		cudaMemcpy(&info, d_info, sizeof(int), cudaMemcpyDeviceToHost);
 
-		if(0 > info){	
-			printf("%d-th parameter is wrong \n", -info); exit(1);
-		}
+		if(0 > info) printf("%d-th parameter is wrong \n", -info);
 		\end{lstlisting}
 		
 		Nun kann explizit eine LU-Zerlegung $A = LU$ mittels \li`cusolverDnDgetrf` durchgeführt werden. Dies funktioniert optional mit einer Pivotisierung $PA = LU$ (Permutationsmatrix $P$), bei der zusätzlich das Pivot Element jeder Zeile gespeichert wird. Bei dem speziellen Info \enquote{Array} \li`d_info` handelt es sich um einen einzigen globalen Integer-Wert, der mit negativem Vorzeichen angibt, welcher Parameter bei der Berechnung fehlerhaft war. Bei einer fehlerfreien Berechnung ist dieser Wert mit null belegt. Die Ausgabe der fertige Zerlegung wird als $(L-1)+U$ in einer einzigen Matrix gespeichert.
@@ -277,10 +273,10 @@ der Events.
 		\begin{lstlisting}[caption=cuSOLVER: Gleichungssystem lösen]
 		if(pivot_on) 
 			cusolverDnDgetrs(cusolverH, CUBLAS_OP_N, m, 1, d_A, lda, 
-			d_Ipiv, d_B, ldb, d_info);
+			    d_Ipiv, d_B, ldb, d_info);
 		else         
 			cusolverDnDgetrs(cusolverH, CUBLAS_OP_N, m, 1, d_A, lda, 
-			NULL,   d_B, ldb, d_info);
+			    NULL,   d_B, ldb, d_info);
 			
 		cudaDeviceSynchronize();
 
@@ -324,6 +320,7 @@ der Events.
 		const float alpha = 1.0f;
 		const float beta  = 0.0f;
 		blasf77_sgemm("N", "N", &m, &n, &n, &alpha, a, &m, x, &m, &beta, b, &m);
+
 
 		magma_int_t info;
 		magma_sgesv(m, n, a, m, piv, b, m, &info);
@@ -412,15 +409,13 @@ der Events.
 			paralution::stop_paralution();
 			\end{lstlisting}
 			
-			Die Daten werden hier mit Konstruktoraufrufen von C++-Vektoren erzeugt. Deren Inhalte werden durch explizite Aufrufe von Member Funktionen gesetzt. Dann wird ein sogenannter Stencil als numerische Näherung für den 2d-Laplace Operator erzeugt. Das Gitter, auf welches dieser Stencil angewendet werden soll, wird auf 100 ($100\times 100$) gesetzt. Damit wird ein linear Solver (ls) erzeugt (\li`ls.Build()`). Mit diesem kann die Differentialgleichung nun gelöst werden (\li`ls.Solve(rhs, &x)`). An Stelle eines Laplace Operators lässt sich genauso eine Matrix verwenden, um beispielsweise eine Zerlegung auszuführen. Mit der Initialisierunsfunktion \li`init_paralution` können mehrere Parameter, wie z.B. die Abbruchbedingung der Iteration eingestellt werden. Dies kann im äußerst ausführlichen Handbuch nachgeschlagen werden. \autocite{para}
+			Die Daten werden hier mit Konstruktoraufrufen von C++ Vektoren erzeugt. Deren Inhalte werden durch explizite Aufrufe von Member-Funktionen gesetzt. Dann wird ein sogenannter Stencil als numerische Näherung für den 2d-Laplace Operator erzeugt. Das Gitter, auf welches dieser Stencil angewendet werden soll, wird auf 100 ($100\times 100$) gesetzt. Damit wird ein linear Solver (ls) erzeugt (\li`ls.Build()`). Mit diesem kann die Differentialgleichung nun gelöst werden (\li`ls.Solve(rhs, &x)`). An Stelle eines Laplace Operators lässt sich genauso eine Matrix verwenden, um beispielsweise eine Zerlegung auszuführen. Mit der Initialisierungsfunktion \li`init_paralution` können mehrere Parameter, wie z.B. die Abbruchbedingung der Iteration eingestellt werden. Dies kann im äußerst ausführlichen Handbuch nachgeschlagen werden. \autocite{para}
 			 
 			\subsubsection{AMGX}	
 			Bei AmgX handelt es sich um eine ähnliche Bibliothek. Die Stärken liegen hierbei u.A. bei Krylov-Subspace Methoden. AmgX ist ein offizielles Partnerprojekt von Nvidia und kann unter \url{https://github.com/NVIDIA/AMGX} heruntergeladen werden. Zusätzliche Python Bindings sind unter \url{https://github.com/shwina/pyamgx} verfügbar. Das Handbuch enthält mehr Informationen über die Nutzung. \autocite{amgx}	
 			
 		\subsection{clSPARSE}
-		Ein Teil von cuSPARSE und cuSOLVER sowie zusätliche iterative Verfahren wurden von AMD in OpenCL als clSPARSE implementiert. Das \Gls{API} wurde vollständig in C++ programmiert und ist kompatibel zum OpenCL C++ Wrapper. Die Bibliothek enthält folgende Funktionen:
-		
-		\newpage
+		Ein Teil von cuSPARSE und cuSOLVER sowie zusätzliche iterative Verfahren wurden von AMD in OpenCL als clSPARSE implementiert. Das \Gls{API} wurde vollständig in C++ programmiert und ist kompatibel zum OpenCL C++ Wrapper. Die Bibliothek enthält folgende Funktionen:
 		
 		\begin{itemize}				
 			\item Sparse Matrix - dense Vector multiply (SpM-dV)
@@ -431,25 +426,28 @@ der Events.
 			\item Dense to CSR conversions (\& converse)
 			\item COO to CSR conversions (\& converse)
 			\item Functions to read matrix market files in COO or CSR format
-    	\end{itemize}
+    	    \end{itemize}
     	
-    	Folgendes Beispiel implementiert einen iterativen CG-Solver. Dazu werden eine dünne Matrix $A$ sowie zwei dichte Vektoren $x$ und $b$ als C++-Objekte erstellt. Es folgt das Setup und der \Gls{Handle}, hier \textit{Control} genannt. 
-    	\begin{lstlisting}[caption=clSPARSE: Initialisieren]
-		cldenseVector x;
-		clsparseInitVector(&x);
+        	Folgendes Beispiel implementiert einen iterativen CG-Solver. Dazu werden eine dünne Matrix $A$ sowie zwei dichte Vektoren $x$ und $b$ als C++-Objekte erstellt. Es folgt das Setup und der \Gls{Handle}, hier \textit{Control} genannt. 
+        	
+        	\newpage
+        	
+        	\begin{lstlisting}[caption=clSPARSE: Initialisieren]
+        cldenseVector x;
+        clsparseInitVector(&x);
 		
-		cldenseVector b;
-		clsparseInitVector(&b); 
+        cldenseVector b;
+        clsparseInitVector(&b); 
 
-		clsparseCsrMatrix A;
-		clsparseInitCsrMatrix(&A); 
+        clsparseCsrMatrix A;
+        clsparseInitCsrMatrix(&A); 
     	
-		clsparseSetup();
-		clsparseCreateResult createResult = clsparseCreateControl(queue());
-    	\end{lstlisting}
+        clsparseSetup();
+        clsparseCreateResult createResult = clsparseCreateControl(queue());
+        	\end{lstlisting}
 
 		Die Daten der C++ Klasse werden explizit gesetzt. Für die Grafikkarte muss dennoch Speicher alloziert und kopiert werden. Man beachte den eigenen Datentyp \li`clsparseIdx_t`. Das Format der Matrix (CSR) muss dem \Gls{Handle} bekannt gemacht werden (\enquote{Meta}).\\
-    	\begin{lstlisting}[caption=clSPARSE: Vektoren und Matrizen setzen]
+    	    \begin{lstlisting}[caption=clSPARSE: Vektoren und Matrizen setzen]
 		A.num_nonzeros = ...;
 		A.num_rows = ...;
 		A.num_cols = ...;    
@@ -480,8 +478,6 @@ der Events.
 		\end{lstlisting}  
 		
 		Nach dem Setup kann ein eigener \Gls{Handle} für den Solver erstellt werden. Es wird ein diagonaler Vorkonditionierer verwendet. Die Konverkenzkriterien sind $\varepsilon_{rel} = 10^{-2}$ und $\varepsilon_{abs} = 10^{-5}$. Das Iterationslimit wird auf $1000$ gesetzt. Schließlich wird die eigentliche Funktion gerufen. Beide \Glspl{Handle} werden nach Gebrauch zerstört. Trotz C++ \Gls{API} müssen die Speicherobjekte freigegeben werden. Die Metainformation muss ebenfalls gelöscht werden.
-		
-		\newpage
 		                    
 		\begin{lstlisting}[caption=clSPARSE: Ausführen]
 		clsparseCreateSolverResult solverResult = 
@@ -503,7 +499,7 @@ der Events.
 
 		clReleaseMemObject(x.values);
 		clReleaseMemObject(b.values);
-    	\end{lstlisting}
+        	\end{lstlisting}
     	
-    	Die Dokumentation ist unter \href{http://clmathlibraries.github.io/clSPARSE/} zu finden. Für das Error Handling muss neben dem üblichen \textit{clSPARSE.h} zusätzlich \textit{clSPARSE-error.h} inkludiert werden. Linken erfolgt gegen \textit{libclSPARSE}.
+    	    Die Dokumentation ist unter \href{http://clmathlibraries.github.io/clSPARSE/} zu finden. Für das Error Handling muss neben dem üblichen \textit{clSPARSE.h} zusätzlich \textit{clSPARSE-error.h} inkludiert werden. Linken erfolgt gegen \textit{libclSPARSE}.
 			

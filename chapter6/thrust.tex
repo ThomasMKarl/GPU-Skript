@@ -2,7 +2,7 @@
 	THRUST ist die CUDA-Implementierung der Standard Template Library für C++ und ist Teil des CUDA-Toolkits. THRUST orientiert sich an C++11 und beseht aus vier Teilen.
 		
 		\subsection{Container}
-		Grundlage für THRUST bilden die Container-Klassen zur Erzeugung dynamischer Datenstrukturen. Diese Klassen befinden sich im Namespace \li`thrust`. Die Klasse \li`host_vector` entspricht dabei dem C++-vektor. Mit \li`device_vector` existiert eine Vektorklasse, die sich ebenfalls über Member-Funktionen steuern lässt, aber zu jedem Zeitpunkt im Speicher des Device liegt.
+		Grundlage für THRUST bilden die Container-Klassen zur Erzeugung dynamischer Datenstrukturen. Diese Klassen befinden sich im Namespace \li`thrust`. Die Klasse \li`host_vector` entspricht dabei dem C++ Vektor. Mit \li`device_vector` existiert eine Vektorklasse, die sich ebenfalls über Member-Funktionen steuern lässt, aber zu jedem Zeitpunkt im Speicher des Device liegt.
 		\begin{lstlisting}[caption=THRUST Vektoren]
 		#include <thrust/host_vector.h>
 		#include <thrust/device_vector.h>
@@ -26,9 +26,9 @@
 		D[1] = 88;
 		\end{lstlisting}
 		
-		In diesem Beispiel wird ein Vektor von Ganzzahlen erstellt und dessen Elemnte gesetzt. Die Größe kann über die getter-Funktion \li`size` ausgegeben werden. Die Größe kann dynamisch verringert oder vergrößert werden. Danach wird der Hostvektor explizit in einen Devicevektor kopiert. Der Devicevektor lässt sich dabei auch vom Host modifizieren.
+		In diesem Beispiel wird ein Vektor von Ganzzahlen erstellt und dessen Elemente gesetzt. Die Größe kann über die getter-Funktion \li`size` ausgegeben werden. Die Größe kann dynamisch verringert oder vergrößert werden. Danach wird der Hostvektor explizit in einen Devicevektor kopiert. Der Devicevektor lässt sich dabei auch vom Host modifizieren.
 		
-		Die Idee hinter Devicevektoren ist, Member-Funktionen zu benutzen, die aud diesen Datenstrukturen operieren und dabei in CUDA parallelisiert sind. Devicevektoren werden wie gewöhnliche Vektoren vom Host gesteuert, und können nich direkt im Device Code verwendet werden, da sich im Device Speicher nicht dynamisch verwalten lässt.
+		Die Idee hinter Devicevektoren ist, Member-Funktionen zu benutzen, die auf diesen Datenstrukturen operieren und dabei in CUDA parallelisiert sind. Devicevektoren werden wie gewöhnliche Vektoren vom Host gesteuert, und können nicht direkt im Device Code verwendet werden, da sich im Device Speicher nicht dynamisch verwalten lässt.
 		
 		\subsection{Iteratoren}
 		Zur besseren Steuerung der Vektoren bietet THRUST Iteratoren an.
@@ -44,7 +44,7 @@
 		
 		\li`begin` und \li`end` sind Iteratoren, die auf Anfang und Ende des belegten Speichers zeigen. So können THRUST Funktionen benutzt werden, um Vektoren zu füllen oder zu Kopieren. Die erste Funktion füllt einen Vektor von Element 0 bis 6	mit 9. Dann wird ein Vektor erstellt als Kopie der ersten fünf Elemente des vorherigen. \li`sequenze` füllt den Vektor mit aufsteigenden Ganzzahlen. Im letzten Schritt wird ein Vektor von Anfang bis Ende An den Beginn eines anderen Vektors kopiert.
 		
-		Weiter Iteratoren sind
+		Weitere Iteratoren sind
 		\begin{itemize}
 		\item \li`constant_iterator`
 		\item \li`counting_iterator`
@@ -101,7 +101,7 @@
 		int result = thrust::count(vec.begin(), vec.end(), 1);
 		\end{lstlisting}
 		
-		Erstere Funktion vollzieht eine Summenreduktion, zweitere zählt den Wert eins in einem Vektor. Zum Suchen bestimmter Werte implementiert THUST eine parallele Version einer Binärsuche. Eine Liste aller Reduktionen befindet sich unter \url{http://thrust.github.io/doc/group__reductions.html} in der THRUST Dokumentation. \autocite{thrustDoc}
+		Erstere Funktion vollzieht eine Summenreduktion, Letztere zählt den Wert eins in einem Vektor. Zum Suchen bestimmter Werte implementiert THUST eine parallele Version einer Binärsuche. Eine Liste aller Reduktionen befindet sich unter \url{http://thrust.github.io/doc/group__reductions.html} in der THRUST Dokumentation. \autocite{thrustDoc}
 		
 		Mittels \li`transform_reduce` lassen sich Reduktionen mit selbstgeschriebenen Funktoren kombinieren. Soll eine Reduktion von THRUST auf ein Array angewendet werden, dass von einem \Gls{Kernel} modifiziert wurde oder an eines übergeben werden soll, eignet sich die Klasse \li`device_ptr`.		
 		\begin{lstlisting}[caption=THRUST Device Pointer]
