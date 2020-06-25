@@ -1,6 +1,6 @@
-exercise/*.pdf
-libdoc/*.pdf
-*.pdf
+exercise/exercise.pdf
+libdoc/libdoc.pdf
+skript.pdf
 *.out
 *.aux
 *.toc
