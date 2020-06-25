@@ -43,26 +43,7 @@
 			\end{lstlisting}	
 					
             Die Zufallszahlen können auf den Host zurück kopiert, in einem anderen \Gls{API} verwendet oder in einem eigenen \Gls{Kernel} benutzt werden.
-			
-            \begin{table}[h]
-                \centering
-                \begin{tabular}{p{0.6\textwidth}p{0.4\textwidth}}
-                    \toprule
-                    \textbf{Verteilung} & \textbf{Beschreibung} \\ \midrule
-                    \li`curandGenerate(...)` & 32bit Zufallszahlen, jedes Bit zufällig \\
-                    \li`curandGenerateLongLong(...)` & 64bit Zufallszahlen, jedes Bit zufällig \\
-                    \li`curandGenerateUniform(...)` & Uniforme Zufallszahlen im Bereich $(0,1]$ \\
-                    \li`curandGenerateNormal(..., float m, float s)` & Normalverteilte Zufallszahlen mit Mittelwert und Standardabweichung \\
-                    \li`curandGenerateLogNormal(..., float mean, float stddv)` & Log-Normalverteilte Zufallszahlen \\
-                    \li`curandGeneratePoisson(..., size_t n, double lambda)` & Ganzzahlen der Verteilung (für $\lambda > 0$) $P(k)_{\lambda} = \lambda^k/k!\cdot\mathrm{e}^{-\lambda}$, $k=0,1,2...$ \\
-                    \li`curandGenerateUniformDouble(...)` & Doppelte Präzision \\
-                    \li`curandGenerateNormalDouble(..., float mean, float stddv)` & Doppelte Präzision \\
-                    \li`curandGenerateLogNormalDouble(..., float mean, float stddv)` & Doppelte Präzision \\ \bottomrule
-                \end{tabular}
-                \caption{Liste der Pseudo RNGs}
-                \label{tab5:dist}
-			\end{table}
-			
+
             Zur Benutzung des Device \Glspl{API} muss ein sogenannter State für jeden \Gls{Thread} erstellt werden. Dieser wird in einem eigenen \Gls{Kernel} erstellt.
             Dazu muss die Funktion \li`curand_init` gerufen werden. Dieser wird ein Seed, eine Sequenznummer und ein Offset übergeben. Der Seed kann auf dem Host zufällig initialisiert werden. Die Sequenznummer hängt vom \Gls{Thread}index ab und ist damit für jeden \Gls{Thread} verschieden.
             \begin{lstlisting}[caption=cuRAND: Device API States]
@@ -79,6 +60,25 @@
         cudaMalloc(&devStates, n*sizeof(curandState));
         setup_kernel<<<...,...>>>(devStates);		
             \end{lstlisting}
+            
+            \begin{table}[h]
+                \centering
+                \begin{tabular}{p{0.6\textwidth}p{0.35\textwidth}}
+                    \toprule
+                    \textbf{Verteilung} & \textbf{Beschreibung} \\ \midrule
+                    \li`curandGenerate(...)` & 32bit Zufallszahlen, jedes Bit zufällig \\
+                    \li`curandGenerateLongLong(...)` & 64bit Zufallszahlen, jedes Bit zufällig \\
+                    \li`curandGenerateUniform(...)` & Uniforme Zufallszahlen im Bereich $(0,1]$ \\
+                    \li`curandGenerateNormal(..., float m, float s)` & Normalverteilte Zufallszahlen mit Mittelwert und Standardabweichung \\
+                    \li`curandGenerateLogNormal(..., float mean, float stddv)` & Log-Normalverteilte Zufallszahlen \\
+                    \li`curandGeneratePoisson(..., size_t n, double lambda)` & Ganzzahlen der Verteilung (für $\lambda > 0$) $P(k)_{\lambda} = \lambda^k/k!\cdot\mathrm{e}^{-\lambda}$, $k=0,1,2...$ \\
+                    \li`curandGenerateUniformDouble(...)` & Doppelte Präzision \\
+                    \li`curandGenerateNormalDouble(..., float mean, float stddv)` & Doppelte Präzision \\
+                    \li`curandGenerateLogNormalDouble(..., float mean, float stddv)` & Doppelte Präzision \\ \bottomrule
+                \end{tabular}
+                \caption{Liste der Pseudo RNGs}
+                \label{tab5:dist}
+			\end{table}
 			
             Nun kann in einem separaten \Gls{Kernel} anhand dieses States eine Verteilung benutzt werden. So muss pro Programm und \Gls{Thread} die langsame \li`curand_init` Funktion nur einmal gerufen werden. Um die Performance weiter zu verbessern, wird jeder State erst in den \gls{local Memory} kopiert und am Ende des \Glspl{Kernel} zurück kopiert. Werden mehrere Zufallszahlen benötigt, wird so der State in den Cache geladen.  \\ \\
             \begin{lstlisting}[caption=cuRAND: Device API Generierung]
@@ -112,6 +112,17 @@
 					
             \subsubsection{Quasi Random} 
             Neben den gewöhnlichen Pseudo Zufallszahlen werden des Öfteren sogenannte Quasi Zufallszahlen verwendet. Dies bezeichnet Sequenzen von Zahlen die im mathematischen Sinn eine geringe Diskrepanz aufweisen. Hauptanwendungsgebiet ist Monte-Carlo Integration, da Quasi-Monte-Carlo Integration unter bestimmten Umständen eine höhere Konvergenzgeschwindigkeit aufweist. Die bekannteste und schnellste ist die Sobol Sequenz. Zur Benutzung in der Host \Gls{API} muss lediglich ein entsprechender Generator aus Tabelle \ref{tab5:qrng} verwendet werden.
+			
+            Zur Benutzung in der Device \Gls{API} muss ein entsprechender State benutzt werden:
+            \begin{itemize}
+                \item \li`curandStateSobol32_t`
+                \item \li`curandStateScrambledSobol32_t`
+                \item \li`curandStateSobol64_t`
+                \item \li`curandStateScrambledSobol64_t`
+            \end{itemize}
+			
+            In Kapitel 3.2 der cuRAND Dokumentation befindet sich eine Liste der entsprechenden Verteilungen. \autocite{curandDoc}
+            
             \begin{table}[h]
                 \centering
                 \begin{tabular}{ll}
@@ -124,17 +135,7 @@
                 \end{tabular}
                 \caption{Liste der Quasi RNGs}
                 \label{tab5:qrng}
-            \end{table}
-			
-            Zur Benutzung in der Device \Gls{API} muss ein entsprechender State benutzt werden:
-            \begin{itemize}
-                \item \li`curandStateSobol32_t`
-                \item \li`curandStateScrambledSobol32_t`
-                \item \li`curandStateSobol64_t`
-                \item \li`curandStateScrambledSobol64_t`
-            \end{itemize}
-			
-            In Kapitel 3.2 der cuRAND Dokumentation befindet sich eine Liste der entsprechenden Verteilungen. \autocite{curandDoc}					
+            \end{table}				
 						
         \subsection{Random mit OpenCL}
             \subsubsection{clRNG}
@@ -160,14 +161,14 @@
         //////////////////////////////////////////////////////////////////////
 			
         cl_int err, streamBufferSize, numWorkItems = ...;
-
         clrngMrg31k3pStream *streams = clrngMrg31k3pCreateStreams(NULL, 
             numWorkItems, &streamBufferSize, (clrngStatus *)&err);
 
-        cl_mem bufIn = clCreateBuffer(ctx, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, 
-            streamBufferSize, streams, &err);
+        cl_mem bufIn = clCreateBuffer(ctx, CL_MEM_READ_ONLY | 
+            CL_MEM_COPY_HOST_PTR, streamBufferSize, streams, &err);
         cl_mem bufOut = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY | 
             CL_MEM_HOST_READ_ONLY, numWorkItems * sizeof(cl_float), NULL, &err);
+            
         clSetKernelArg(kernel, 0, sizeof(bufIn),  &bufIn);
         clSetKernelArg(kernel, 1, sizeof(bufOut), &bufOut);
 
@@ -200,10 +201,11 @@
         dist = clprobdistExponentialCreate(1.0, &distBufferSize, 
             (clprobdistStatus *)&err);    
 			
-        cl_mem bufIn = clCreateBuffer(ctx, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, 
-            distBufferSize, dist, &err);
+        cl_mem bufIn = clCreateBuffer(ctx, CL_MEM_READ_ONLY |
+            CL_MEM_COPY_HOST_PTR, distBufferSize, dist, &err);
         cl_mem bufOut = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY | 
-            CL_MEM_HOST_READ_ONLY, numWorkItems * sizeof(cl_double), NULL, &err);
+            CL_MEM_HOST_READ_ONLY, numWorkItems*sizeof(cl_double), NULL, &err);
+            
         clSetKernelArg(kernel, 0, sizeof(bufIn),  &bufIn);
         clSetKernelArg(kernel, 1, sizeof(bufOut), &bufOut);
 			
@@ -233,6 +235,7 @@
         }
 			
         cl_int err, latBufferSize, numWorkItems = ...;
+        
         clqmcLatticeRule *lat;               
         lat = clqmcLatticeRuleCreate(numWorkItems, 3, (cl_int[]){1, 27, 15}, 
             &latBufferSize, (clqmcStatus *)&err);  

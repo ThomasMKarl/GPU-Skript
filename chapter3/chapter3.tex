@@ -303,10 +303,10 @@
         
         Aus den genannten Beispielen ergeben sich Merkregeln für die Wahl der \Gls{Thread}zahl pro \Gls{Block}:
         \begin{itemize}
-        	\item Die Anzahl sollte ein Vielfaches von 32 sein, um unregelmäßiges Arbeiten der \Glspl{Warp} zu verhindern.
-        	\item Die Anzahl sollte ein Vielfaches der Anzahl von \Glspl{Thread} pro \Gls{SM} sein, um unregelmäßiges Mapping von physischem Speicher in den selben Adressraum zu verhindern.
-        	\item Die Anzahl sollte so gewählt sein, dass sich die gesamte Problemgröße, also ein oder mehrere \Glspl{Grid}, exakt auf gleich große \Glspl{Block} verteilen lässt.
-        	\item Die Gesamtzahl der \Glspl{Thread} im \Gls{Grid} sollte ein Vielfaches der insgesamt in Hardware zur Verfügung stehenden \Glspl{Thread} sein, um die GPU voll auszulasten.
+            	\item Die Anzahl sollte ein Vielfaches von 32 sein, um unregelmäßiges Arbeiten der \Glspl{Warp} zu verhindern.
+            	\item Die Anzahl sollte ein Vielfaches der Anzahl von \Glspl{Thread} pro \Gls{SM} sein, um unregelmäßiges Mapping von physischem Speicher in den selben Adressraum zu verhindern.
+            	\item Die Anzahl sollte so gewählt sein, dass sich die gesamte Problemgröße, also ein oder mehrere \Glspl{Grid}, exakt auf gleich große \Glspl{Block} verteilen lässt.
+            	\item Die Gesamtzahl der \Glspl{Thread} im \Gls{Grid} sollte ein Vielfaches der insgesamt in Hardware zur Verfügung stehenden \Glspl{Thread} sein, um die GPU voll auszulasten.
         \end{itemize}
         
         Da in der Praxis diese Punkte kaum alle einzuhalten sind, ist ein Blackbox-Verfahren für die GPU schwer oder gar nicht zu programmieren. Lässt sich die Zahl der Werte $N$ nicht bequem auf \Glspl{Block} und \Glspl{Thread} verteilen, so muss \li`N / threadsPerBlock` auf die nächst größere Zahl aufgerundet werden. Dazu berechnet man mit einer Integerdivision \li`blocksPerGrid = (N + threadsPerBlock - 1) / threadsPerBlock`. Wenn möglich sollte man bereits bei der Erzeugung von Messdaten in einem Experiment oder in einer Simulation auf vernünftige Problemgrößen achten, andernfalls muss man mit \Gls{Performance}einbußen rechnen.
@@ -379,8 +379,7 @@
 		
 		Die Geräte lassen sich mit \li`cudaSetDevice` manuell umschalten. Speicher der einen GPU lässt sich nur dann von der anderen abrufen, wenn der Peer-to-Peer Access mit \li`cudaDeviceEnablePeerAccess` aktiviert und der Speicher explizit zwischen den GPUs kopiert wird. Die Null am Ende teilt die Events dem Stream mit der Nummer 0 zu (siehe \ref{streams}). Wird diese Angabe unterdrückt, so werden die Aufrufe automatisch diesem \Gls{Stream} zugeordnet (default-\Gls{Stream}).
 		\begin{lstlisting}[caption=Device Peer-to-Peer Access]
-			int deviceCount;
-			cudaGetDeviceCount(&deviceCount);
+			int deviceCount; cudaGetDeviceCount(&deviceCount);
 
 			cudaDeviceProp deviceProp;
 			cudaGetDeviceProperties(&deviceProp, 0);
@@ -388,13 +387,11 @@
     			device, deviceProp.major, deviceProp.minor);
            
 			cudaSetDevice(0);
-			float* p0;
-			cudaMalloc(&p0, size);
+			float* p0; cudaMalloc(&p0, size);
 			test<<<...>>>(p0);
 			
 			cudaSetDevice(1);
-			float* p1;
-			cudaMalloc(&p1, size);
+			float* p1; cudaMalloc(&p1, size);
 			
 			test<<<...>>>(p1);
 			cudaDeviceEnablePeerAccess(0, 0);
@@ -453,9 +450,9 @@
 		
 		Diese Möglichkeit bietet einige Vorteile:
 		\begin{itemize}
-		\item Probleme, die laut Amdahl kleiner Parallelität erfordern, können so in kleinerem Umfang ausgeführt werden, ohne Hardware Kapazitäten zu vergeuden, da sich mehrere von diesen Problemen gleichzeitig ausführen lassen.
-		\item PCIe ist \textit{full-duplex}. Es kann gleichzeitig gelesen und geschrieben werden. Dazu müssen sich aber beide Kopiervorgänge in verschiedenen Streams befinden. In diesem Fall erhält man fast die doppelte Bandbreite.
-		\item Wenn mehrere \Gls{Kernel} ausgeführt werden sollen, ihre Reihenfolge aber egal ist, kann so der GPU überlassen werden, welche Operationen wann ausgeführt werden.
+		    \item Probleme, die laut Amdahl kleiner Parallelität erfordern, können so in kleinerem Umfang ausgeführt werden, ohne Hardware Kapazitäten zu vergeuden, da sich mehrere von diesen Problemen gleichzeitig ausführen lassen.
+		    \item PCIe ist \textit{full-duplex}. Es kann gleichzeitig gelesen und geschrieben werden. Dazu müssen sich aber beide Kopiervorgänge in verschiedenen Streams befinden. In diesem Fall erhält man fast die doppelte Bandbreite.
+		    \item Wenn mehrere \Gls{Kernel} ausgeführt werden sollen, ihre Reihenfolge aber egal ist, kann so der GPU überlassen werden, welche Operationen wann ausgeführt werden.
 		\end{itemize}
 		
 		
@@ -529,9 +526,9 @@
 		
 		Da die GPU auf Daten normalerweise sehr oft operiert, ohne dass die CPU diese benötigt, lässt sich der Overhead minimieren:
 		\begin{itemize}
-		\item Initialisieren der Daten in einem eigenen \Gls{Kernel} anstatt im Speicher der CPU
-		\item Mehrmaliges Ausführen des \Gls{Kernel}s und Analysieren der mittleren Laufzeit mit \li`nvprof`
-		\item Explizites Kopieren: Um die \textit{Page Migration Engine} explizit zu benutzen existiert der Befehl \li`cudaMemPrefetchAsync(d_A, size, deviceID, stream)`. Ein Wert von -1 bei der deviceID bezeichnet die CPU.
+		    \item Initialisieren der Daten in einem eigenen \Gls{Kernel} anstatt im Speicher der CPU
+		    \item Mehrmaliges Ausführen des \Gls{Kernel}s und Analysieren der mittleren Laufzeit mit \li`nvprof`
+	    	    \item Explizites Kopieren: Um die \textit{Page Migration Engine} explizit zu benutzen existiert der Befehl \li`cudaMemPrefetchAsync(d_A, size, deviceID, stream)`. Ein Wert von -1 bei der deviceID bezeichnet die CPU.
 		\end{itemize}
 		Genauere Informationen unter \url{https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html#group__CUDART__MEMORY_1ge8dc9199943d421bc8bc7f473df12e42}.
 		
@@ -687,7 +684,7 @@
 		Kompilieren: \li`nvcc dynpar.cu -arch=compute_61 -code=sm_61 -rdc=true -lcudadevrt`
 		
 		\section{CUDA-Toolkit}
-		Folgende Informationen beziehen sich auf die aktuellste Version (10.2).
+		Folgende Informationen beziehen sich auf die aktuellste Version (11.0).
 		
 			\subsection{Baumstruktur}\label{tree}
 			Bei Installation des CUDA-Toolkits werden im Installationsordner verschiedene Unterordner erstellt. Die wichtigsten sind:
@@ -699,17 +696,17 @@
 			    \item \textbf{lib64}\\ enthält die dynamischen und statischen CUDA Librarys, möglicherweise Link auf Unterordner
 			\end{itemize}
 			\subsection{NVCC}\label{tools}
-			Der Nvidia CUDA Compiler (\gls{nvcc}) wird benutzt um sowohl Host- als auch Devicecode zu kompilieren. Es handelt sich dabei um eine Obermenge des g++-8. Es lässt sich alles bis zum C++14 Standard in C oder C++ kompilieren. Soll explizit Devicecode kompiliert werden, so muss die Quelldatei die Dateiendung \li`.cu` tragen. Andernfalls wird der Code als gewöhnliches C++ kompiliert und der Compiler liefert Fehler, sobald er auf Devicecode stößt.
+			Der Nvidia CUDA Compiler (\gls{nvcc}) wird benutzt um sowohl Host- als auch Devicecode zu kompilieren. Es lässt sich alles bis zum C++17 Standard in C oder C++ kompilieren. Soll explizit Devicecode kompiliert werden, so muss die Quelldatei die Dateiendung \li`.cu` tragen. Andernfalls wird der Code als gewöhnliches C++ kompiliert und der Compiler liefert Fehler, sobald er auf Devicecode stößt.
 		
 			Der Compiler wird wie gewohnt gestartet:
 		
 			\li`nvcc <name>.cu`
 		
-			Der Compiler kompiliert nun getrennt Hostcode wie gewohnt mittels gcc/g++ (clang unter MacOS), Devicecode aber in eine Sprache ähnlich Assembler namens \textit{Nvidia Parallel Thread Execution} (\Gls{NVPTX}). Aus dieser kann Maschinencode erstellt werden, der für die GPU lesbar ist. Der Compiler erstellt ein sogenanntes \textit{fatbinary}, kompiliert also Device- und Hostcode in die selbe ausführbare Datei. Um dies zu verhindern, kann die Option \li`-cubin` verwendet werden. Damit wird der Devicecode in ein eigenes Binary kompiliert, ein sogenanntes \textit{cubin}. Im Handbuch des \gls{nvcc} \autocite{cudaNVCC} befindet sich eine Liste der Compilerflags. Diese sind in den wesentlichen Punkten kompatibel zu g++ mit Ausnahme einiger spezieller Modi für Devicecode.
+			Der Compiler kompiliert nun getrennt Hostcode wie gewohnt mittels g++-9 (clang-9 unter MacOS, cl.exe VS19 unter Windows) oder geringeren Versionen, Devicecode aber in eine Sprache ähnlich Assembler namens \textit{Nvidia Parallel Thread Execution} (\Gls{NVPTX}). Aus dieser kann Maschinencode erstellt werden, der für die GPU lesbar ist. Der Compiler erstellt ein sogenanntes \textit{fatbinary}, kompiliert also Device- und Hostcode in die selbe ausführbare Datei. Um dies zu verhindern, kann die Option \li`-cubin` verwendet werden. Damit wird der Devicecode in ein eigenes Binary kompiliert, ein sogenanntes \textit{cubin}. Im Handbuch des \gls{nvcc} \autocite{cudaNVCC} befindet sich eine Liste der Compilerflags. Diese sind in den wesentlichen Punkten kompatibel zu g++ mit Ausnahme einiger spezieller Modi für Devicecode.
 		
 			Die wichtigste Ausnahme ist: \li`-arch=compute_35 -code=sm_35`
 		
-			Dieses lässt den Code explizit für eine \gls{compute capability} kompilieren, in diesem Fall 3.5. Damit lassen sich Features dieser \gls{compute capability} aktivieren. Allerdings ist der Code auf älteren Karten dann nicht mehr ausführbar (falls modernere Features verwendet wurden). \enquote{Arch} (Architecture) bezeichnet dabei das Chipdesign, \enquote{Code} die Software. Gibt man mehrere Optionen an (getrennt mit Komma) an, so werden Cubins für alle Architekturen erstellt und in einem einzelnen Fatbinary verschmolzen. Beim Ausführen wird dann automatisch die richtige Architektur erkannt. Wählt man als Version $x.0$, so wird der Quellcode im Binary hinterlegt. Wird dieses dann auf einem Device mit \gls{compute capability} $x.y$ ($y \geq 0$) ausgeführt, so wird dieser Quellcode just-in-time (zur Laufzeit) entsprechend kompiliert und im Cache gespeichert. 
+			Dieses lässt den Code explizit für eine \gls{compute capability} kompilieren, in diesem Fall 3.5 (default: 3.0). Damit lassen sich Features dieser \gls{compute capability} aktivieren. Allerdings ist der Code auf älteren Karten dann nicht mehr ausführbar (falls modernere Features verwendet wurden). \enquote{Arch} (Architecture) bezeichnet dabei das Chipdesign, \enquote{Code} die Software. Gibt man mehrere Optionen an (getrennt mit Komma) an, so werden Cubins für alle Architekturen erstellt und in einem einzelnen Fatbinary verschmolzen. Beim Ausführen wird dann automatisch die richtige Architektur erkannt. Wählt man als Version $x.0$, so wird der Quellcode im Binary hinterlegt. Wird dieses dann auf einem Device mit \gls{compute capability} $x.y$ ($y \geq 0$) ausgeführt, so wird dieser Quellcode just-in-time (zur Laufzeit) entsprechend kompiliert und im Cache gespeichert. 
 		
 			Mit \li`-c` lassen sich wie gewohnt Objektdateien (\li`.o`) und damit statische und dynamische Librarys (\li`-shared`) erstellen.
 		

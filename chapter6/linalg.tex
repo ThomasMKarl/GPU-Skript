@@ -97,7 +97,7 @@
 		Einziger Unterschied zu cuBLAS ist die Angabe von OpenCl-spezifischen Eigenheiten, wie z.B. die Angabe eines Offsets oder	
 der Events.
 		
-		\subsection{cuSPARSE und clSPARSE}
+		\subsection{cuSPARSE}
 		In vielen Fällen der Praxis handelt es sich bei Matrizen um sogenannte dünn besetzte Matrizen (engl. \textit{sparse matrices}). Das Prinzip eines sparse-Formates beruht darauf, die wesentliche Anzahl von Nullen in der Matrix nicht zu speichern. Man speichert lediglich die von null verschiedenen Werte und deren Indizes in der Matrix. Bei einer Bandmatrix z.B. steigt die Zahl dieser Elemente linear mit $n$, die Zahl der Nullen aber quadratisch. Daher ist in den meisten Fällen ein solches Format bereits wegen dem geringeren Speicherbedarf sinnvoll. 
 		
 		Eine Multiplikation mit Null ergibt immer Null und muss nicht explizit ausgeführt werden. Um die Performance zu steigern, müssen folglich Algorithmen verwendet werden, die dieses Format explizit unterstützen. Für CUDA existiert die Bibliothek cuSPARSE. Das Inkludieren und Linken erfolgt wie gewohnt (\textit{cusparse.h}, \textit{libcusparse}).
@@ -118,7 +118,7 @@ der Events.
 		Bei diesem Format werden die Werte und deren Indizes in der Matrix nacheinander, ohne Ordnung und zeilenweise abgelegt. Es existieren komplexere Formate, die für bestimmte Algorithmen notwendig sind. Für die Operation aus dem letzten Abschnitt wird beispielsweise das \textit{Block Compressed Sparse Row Format} (BSR) Format benötigt. Die genauen Anforderungen der Formate können in der Dokumentation nachgelesen werden. \cite{cusparseDoc}
 		Für Vektoren ist die Angabe eines zweiten Index natürlich überflüssig. Dichte Vektoren werden als gewöhnliche Arrays gespeichert.
 		\begin{lstlisting}[caption=cuSPARSE: Vektor erstellen]
-		int nnz_vector = ;
+		int nnz_vector = ...;
 		int    *xIndHostPtr =    (int*)malloc(nnz_vector*sizeof(int));
 		double *xValHostPtr = (double*)malloc(nnz_vector*sizeof(double));
     
@@ -161,9 +161,9 @@ der Events.
 
 		Auch hier existieren drei Level an Operationen.
 		\begin{itemize}
-			\item \textbf{Level 1: sparseVektor - denseVektor Operationen}\\
-			\item \textbf{Level 2: sparseMatrix - denseVektor Operationen}\\
-			\item \textbf{Level 3: sparseMatrix - mehrere Vektoren gespeichert als denseMatrix}
+			\item \textbf{Level 1:} sparseVektor \leftrightarrow\ denseVektor Operationen\\
+			\item \textbf{Level 2:} sparseMatrix \leftrightarrow\ denseVektor Operationen\\
+			\item \textbf{Level 3:} sparseMatrix \leftrightarrow\ mehrere Vektoren gespeichert als denseMatrix
 		\end{itemize}
 		
 		Bei Letzterem werden die Vektoren nacheinander im selben Array abgespeichert. Im Folgenden wird jeweils ein Beispiel gezeigt. 
@@ -248,27 +248,32 @@ der Events.
 		Für die Nutzung der Funktionen muss ein \Gls{Handle} erzeugt und einem \Gls{Stream} hinzugefügt werden. Belegen der Matrizen erfolgt wie gewohnt linearisiert. Allerdings muss danach mit \\ \li`cusolverDnDgetrf_bufferSize` die Größe eines Buffers, der für die Zerlegung notwendig ist, ermittelt werden. Mit dieser Angabe wird dann der Buffer explizit angelegt.
 		
 		\begin{lstlisting}[caption=cuSOLVER: LU-Zerlegung]
-		int Ipiv[m]; int info; 
+		int Ipiv[m];
 		int *d_Ipiv; cudaMalloc(&d_Ipiv, m*sizeof(int));
+		
+		int info;
 		int *d_info; cudaMalloc(&d_info,   sizeof(int));
 		
-		const int pivot_on = 1;
-		if(pivot_on) 
-			cusolverDnDgetrf(cusolverH, m, m, d_A, lda, d_work, d_Ipiv, d_info);
-		else          
-			cusolverDnDgetrf(cusolverH, m, m, d_A, lda, d_work, NULL,   d_info);
+		if(pivot_on)
+		    cusolverDnDgetrf(cusolverH, m, m, d_A, lda, d_work, d_Ipiv, d_info);
+		else
+		    cusolverDnDgetrf(cusolverH, m, m, d_A, lda, d_work, NULL, d_info);
+		    
 		cudaDeviceSynchronize();
 
 		float LU[lda*m];
+		
 		if(pivot_on) 
 			cudaMemcpy(Ipiv, d_Ipiv, m*sizeof(int), cudaMemcpyDeviceToHost);
+			
+			
 		cudaMemcpy(LU, d_A, lda*m*sizeof(float), cudaMemcpyDeviceToHost);
 		cudaMemcpy(&info, d_info, sizeof(int), cudaMemcpyDeviceToHost);
 
 		if(0 > info) printf("%d-th parameter is wrong \n", -info);
 		\end{lstlisting}
 		
-		Nun kann explizit eine LU-Zerlegung $A = LU$ mittels \li`cusolverDnDgetrf` durchgeführt werden. Dies funktioniert optional mit einer Pivotisierung $PA = LU$ (Permutationsmatrix $P$), bei der zusätzlich das Pivot Element jeder Zeile gespeichert wird. Bei dem speziellen Info \enquote{Array} \li`d_info` handelt es sich um einen einzigen globalen Integer-Wert, der mit negativem Vorzeichen angibt, welcher Parameter bei der Berechnung fehlerhaft war. Bei einer fehlerfreien Berechnung ist dieser Wert mit null belegt. Die Ausgabe der fertige Zerlegung wird als $(L-1)+U$ in einer einzigen Matrix gespeichert.
+		Nun kann explizit eine LU-Zerlegung $A = LU$ mittels \li`cusolverDnDgetrf` durchgeführt werden. Dies funktioniert optional mit einer Pivotisierung $PA = LU$ (Permutationsmatrix $P$), bei der zusätzlich das Pivot Element jeder Zeile gespeichert wird. Soll diese nicht durchgeführt werden, so wir an die Stelle des entsprechenden Arrays \li`NULL` eingefügt. Bei dem speziellen Info \enquote{Array} \li`d_info` handelt es sich um einen einzigen globalen Integer-Wert, der mit negativem Vorzeichen angibt, welcher Parameter bei der Berechnung fehlerhaft war. Bei einer fehlerfreien Berechnung ist dieser Wert mit null belegt. Die Ausgabe der fertige Zerlegung wird als $(L-1)+U$ in einer einzigen Matrix gespeichert.
 		
 		\begin{lstlisting}[caption=cuSOLVER: Gleichungssystem lösen]
 		if(pivot_on) 

@@ -1,7 +1,7 @@
 	\chapter{OpenACC v.s. OpenMP}
 	Um die bisher genannten Konzepte zu vereinfachen, existieren seit einigen Jahren Bestrebungen, Compiler zu entwickeln, die ohne das explizite Programmieren von \Glspl{Kernel} bestimmte Teile des Programms automatisch in parallelen Maschinencode übersetzen. OpenMP ist eine Library für thread-paralleles Programmieren angewandt auf Systeme mit shared Memory, also im Wesentlichen Prozessoren mit mehreren Kernen und gemeinsamen Speicher. 2012 haben sich einige Programmierer für ein neues Projekt abgespaltet: OpenACC ist ein Programmierstandard der \textit{Portland Group}, der ein ähnliches Konzept verfolgt. Mittels Compileranweisungen (\li`#pragma`) zeichnet man Regionen zur Parallelisierung aus und gibt lediglich Hinweise für Optimierungen an. Der Compiler versucht dann eigenständig diesen Teil des Codes plattformunabhängig wahlweise in paralleles Assembly oder \Gls{NVPTX} zu übersetzen. Das Projekt läuft unter dem Slogan \textit{More Science, Less Programming}. Der Programmierer soll mit HPC möglichst wenig konfrontiert werden und damit mehr Zeit für die Entwicklung wissenschaftlicher Applikationen haben. Dieser Gewinn an Funktionalität ist allerdings nur auf Kosten von Performance möglich. Selbst die Entwickler gehen von einem Leistungsverlust gegenüber CUDA von etwa 30\% aus. Die Portland Group wurde 2013 von der \textit{Nvidia Corporation} gekauft.
 	
-	Seit Version 4.5 unterstützt OpenMP ebenfalls Offloading, also das Verschieben von Daten in den Speicher der GPU.
+	Seit Version 4.5 unterstützt OpenMP ebenfalls Offloading, also das Verschieben von Daten in den Speicher der Grafikkarte.
 	 
 		\section{OpenACC Direktiven mittels PGI-SDK}
 		Nur wenige Compiler unterstützen OpenACC. Lediglich der C++-Compiler der Portland Group unterstützt den Standard vollständig. Es handelt sich dabei um einen kommerziellen Compiler. Eine kostenlose Version des PGI-SDK ist aber unter \url{https://www.pgroup.com/products/community.htm} verfügbar.
@@ -22,16 +22,16 @@
 	
 			\begin{table}[h]
 			\centering
-			\begin{tabular}{|l|l|l|}
+			\begin{tabular}{lll}
 				\toprule
-				\textbf{Operator} & \textbf{Description} & \textbf{Example} \\\hline\hline
-				+ & Addition/Summation & reduction(+:sum) \\\hline
-				* & Multiplication/Product & reduction(*:product) \\\hline
-		 		max & Maximum value & reduction(max:maximum) \\\hline
-				min & Minimum & valuereduction(min:minimum) \\\hline
-				\& & Bitwise and & reduction(\& :val) \\\hline
-				| & Bitwise or & reduction(|:val) \\\hline
-				\&\& & Logical and & reduction(\&\& :val) \\\hline
+				\textbf{Operator} & \textbf{Description} & \textbf{Example} \\\midrule
+				+ & Addition/Summation & reduction(+:sum) \\
+				* & Multiplication/Product & reduction(*:product) \\
+		 		max & Maximum value & reduction(max:maximum) \\
+				min & Minimum & valuereduction(min:minimum) \\
+				\& & Bitwise and & reduction(\& :val) \\
+				| & Bitwise or & reduction(|:val) \\
+				\&\& & Logical and & reduction(\&\& :val) \\
 				|| & Logical or & reduction(||:val) \\\bottomrule
 			\end{tabular}
 			\caption{Reduktionen in OpenACC}
@@ -184,6 +184,8 @@
 					array[i][j] = 0.0f;
 			\end{lstlisting}
 			
+			\newpage
+			
 			Tiles entsprechen in etwa einem 2D \Gls{Block} in CUDA:
 			
 			\begin{lstlisting}[caption=OpenACC: Tile]
@@ -199,8 +201,6 @@
 			
 			\Glspl{Block} in CUDA entsprechen sogenannten \enquote{\Glspl{Gang}} in OpenACC. \Glspl{Warp} entsprechen \enquote{\Glspl{Worker}}, \Glspl{Thread} entsprechen \enquote{\Glspl{Vector}}. Für alle drei lässt sich explizit eine Zahl angeben. Dann kann eine Schleife für eine dieser Gruppen markiert werden.
 			
-			\newpage
-			
 			\begin{lstlisting}[caption=OpenACC: Gangs Workers Vectors]
 			#pragma acc parallel num_gangs(2) num_workers(2) vector_length(32)
 			{
@@ -215,6 +215,8 @@
 			
 		\section{OpenACC und CUDA}
 		Bei OpenACC geht es um die einfache Parallelisierung von eigenem Code ohne die explizite Programmierung von \Gls{Kernel}. In den meisten Fällen ist man jedoch auf zusätzliche CUDA Librarys angewiesen. Um eine CUDA Funktion mit einem durch ein Pragma kopiertes Array im Device Speicher aufzurufen, muss dieses extra angegeben werden, da der Variablenname lediglich ein Pointer auf Host Memory ist.
+		
+		\newpage
 		
 		\begin{lstlisting}[caption=OpenACC/CUDA Zusammenspiel: Host Memory]
 		float* x = ...;

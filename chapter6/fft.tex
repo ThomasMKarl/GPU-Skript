@@ -3,10 +3,13 @@
 		Aus Wikipedia \autocite{wikiFFT}:
 		
 		Die Fouriertransformation (FT) ist die wohl wichtigste mathematische Transformation im Bereich Daten- und Signalverarbeitung. Sie findet Anwendung in der Audio- und Videobearbeitung, im maschinellen Lernen und in physikalischen und chemischen Simulationen. Da man in Simulationen nur auf diskrete Werte zugreifen kann, wird in solchen üblicherweise die diskrete Form der FT verwendet (DFT):
+		
 		\begin{equation}
-			f_m = \sum^n_{k=0}x_k\cdot\mathrm{e}^{\left(-\frac{2\pi i}{2n}mk\right)}\qquad m=0,...,n-1
+		f_m = \sum^n_{k=0}x_k\cdot\mathrm{e}^{\left(-\frac{2\pi i}{2n}mk\right)}\qquad m=0,...,n-1
 		\end{equation}
+		
 		Wobei $f_m$ das $m$-te Element der Fouriertransformation eines Vektors ($x_0$, ..., $x_{n-1}$) darstellt. Die meisten Algorithmen, die eine DFT implementieren, verwenden die sogenannte Fast Fourier Transformation (FFT): Teilt man den Vektor in gerade $x^{\prime}_k$ und ungerade Punkte $x^{\prime\prime}_k$ ein, so folgt für die DFT:
+		
 		\begin{align}
 		f_m &= \sum_{k=0}^{n-1}x^{\prime}_k\cdot\mathrm{e}^{\left(-\frac{2\pi i}{n}mk\right)} \quad + \quad \mathrm{e}^{\left(-\frac{\pi i}{n}m\right)}\sum_{k=0}^{n-1}x^{\prime\prime}_k\cdot\mathrm{e}^{\left(-\frac{2\pi i}{n}mk\right)} \\
 		&= \begin{cases} 
@@ -14,6 +17,7 @@
 		f^{\prime}_{m-n} - \mathrm{e}^{\left(-\frac{\pi i}{n}(m-n)\right)}f^{\prime\prime}_{m-n} & m \geq n 
 		\end{cases}
 		\end{align}
+		
 		Mit der Berechnung von $f^{\prime}_m$ und $f^{\prime\prime}_m$ ist sowohl $f_m$ als auch $f_{m+n}$ bestimmt. Der Rechenaufwand hat sich durch diese Zerlegung also praktisch halbiert. 
 		
 		Durch eine Rekursion lässt sich diese Eigenschaft ausnutzen.
@@ -33,10 +37,9 @@
 		\subsection{cuFFT}
 		Bei der cuFFT Library handelt es sich um die state-of-the-art Implementierung einer GPU parallelisierten FFT. Sie wurde im Wesentlichen von der \textit{Fastest Fourier Transformation in the West} (FFTW) inspiriert, unterscheidet sich aber in einem wichtigen Punkt (siehe \ref{fftw}). Zur Benutzung muss der Header \textit{cufft.h} (bzw. \textit{cufftXt.h} für Xt Funktionalität) inkludiert und mit \textit{libcufft} gelinkt werden.
 		
-		cuFFT unterstützt FFTs in bis zu drei Dimensionen von Komplex nach Komplex (CUFFT{\_}C2C), Real nach Komplex (CUFFT\_ R2C) und Komplex nach Real (CUFFT\_ C2R). R und C bezeichnen dabei einfache Präzision. Für die doppelte verwendet man D und Z.
+		cuFFT unterstützt FFTs in bis zu drei Dimensionen von Komplex nach Komplex (CUFFT{\_}C2C), Real nach Komplex (CUFFT{\_}R2C) und Komplex nach Real (CUFFT{\_}C2R). R und C bezeichnen dabei einfache Präzision. Für die doppelte verwendet man D und Z.
 	
-		Zunächst müssen Arrays eines speziellen cuFFT Datentyps (\li`cufftComplex`. \li`cufftReal`, \li`cufftDouble`, 
-		
+		Zunächst müssen Arrays eines speziellen cuFFT Datentyps (\li`cufftComplex`. \li`cufftReal`, \li`cufftDouble`,\\
 		\li`cufftDoubleComplex`) erstellt und wie gewohnt in den \gls{global Memory} kopiert werden:
 		
 		\begin{lstlisting}[caption=cuFFT: komplexer Datentyp]
@@ -61,8 +64,6 @@
 		\end{lstlisting}
 		
 		Der letzte Wert bezeichnet die Batch Größe (später mehr).
-	
-	    \newpage
 	    
 		Dieser Plan muss nun ausgeführt und evtl. das Ergebnis zur Ausgabe zurück kopiert werden.
 		
@@ -167,7 +168,7 @@
 
 		clfftSetPlanPrecision(planHandle, CLFFT_SINGLE);
 		clfftSetLayout(planHandle, CLFFT_COMPLEX_INTERLEAVED, 
-			                       CLFFT_COMPLEX_INTERLEAVED);
+            CLFFT_COMPLEX_INTERLEAVED);
 		clfftSetResultLocation(planHandle, CLFFT_INPLACE);
 
 		clfftBakePlan(planHandle, 1, &queue, NULL, NULL);

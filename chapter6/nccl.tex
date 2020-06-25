@@ -130,7 +130,7 @@
 	    MPI_finalize();
     	\end{lstlisting}
     	
-    	\subsection{GPU-Cluster}
+    	\subsection{GPU Cluster}
     	Auf einem GPU-Cluster werden typischerweise beide Methoden kombiniert. Ein einzelnes Programm wird auf beliebig vielen Hosts ausgeführt. Die einzelnen Prozesse können mittels MPI explizit kommunizieren. Jeder dieser Prozesse kann frei zwischen bis zu vier Grafikkarten wählen und parallele Algorithmen unter Zuhilfenahme von NCCL ausführen. MPI ermöglicht das freie Senden der Daten ohne zusätzliches Buffering im Hostmemory. Die GPUs können mit PCIe oder NVlink angebunden sein. Im letzteren Fall sogar direkt untereinander. Die Prozessoren sind in einem Highspeed-Netzwerk (z.B. mit Infiniband) miteinander verbunden. Da diese Prozessoren normalerweise über mehrere Kerne verfügen, können diese, während die GPUs beschäftigt sind, mittels thread-parallelem Programmieren zusätzlich Aufgaben erledigen. So kann die Hardware vollständig ausgelastet werden.
     	
     	Das NCCL-Handbuch gibt unter\\ 

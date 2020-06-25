@@ -37,10 +37,12 @@ Ein Beispiel in diesem Falle wäre das UNIX-Kommando make. Hier können auch mit
         
         \begin{figure}[h]
 			\centering
-    		    \includegraphics[height=0.6\textwidth]{chapter2/pictures/perf.png}
+    		    \includegraphics[width=0.8\textwidth]{chapter2/pictures/perf.pdf}
     		    \caption[Hardware]{Entwicklung der Hardware}
     		    \label{2:hard}
 		\end{figure}
+		
+		\newpage
 
 		Die Idee: nutze Grafikkarten als co-Prozessoren. Eine Grafikkarte besteht aus mehreren Teilen (Abb. \ref{2:graka}):
 		\begin{itemize}
@@ -50,36 +52,47 @@ Ein Beispiel in diesem Falle wäre das UNIX-Kommando make. Hier können auch mit
 			\item \textbf{GPU}: das Herzstück der Grafikkarte. Ursprünglich war die einzige Aufgabe, der CPU 3d-Berechnungen für Texturen abzunehmen. Es existieren Grafikkarten mit zwei GPUs.
 			\item \textbf{Video-Out-Controller}: wandelt die Berechnungen der GPU in Signale für die Videoausgänge um. Ein DAC Wandler wird nur für den VGA-Ausgang benötigt und existiert auf modernen Karten nicht mehr. 			
 		\end{itemize}
-		Auf jeder GPU sitzt ein passiv-Kühler sowie ein separater Lüfter. Abbildung \ref{2:gpucpu} zeigt eine Grafikkarte verbaut in einem gewöhnlichen Desktop-Computer. 
-		
-		Datenverkehr zwischen CPU und GPU erfolgt meistens über \Gls{PCIe}x16 mit einer maximalen physikalischen Bandbreite von 32GB/s (25GB/s ohne Overhead). Sehr hochwertige Karten sind über \gls{nvlink} miteinander verbunden bei einer \Gls{Peak Bandwidth} von 300GB/s, was immer noch weit unter der internen Speicherbandbreite liegt. Kopieranweisungen zwischen CPU und GPU sollte also auf das Minimum reduziert werden.
 		
 		\begin{figure}[h]
 			\centering
-    		    \includegraphics[height=0.6\textwidth]{chapter2/pictures/pc.png}
-    		    \caption[Desktop PC]{Aufbau eines gew\"ohnlichen Desktop-Computers}
+    		    \includegraphics[width=\textwidth]{chapter2/pictures/gpu.pdf}
+    		    \caption[Grafikkarte]{Teile einer Grafikkarte}
+    		    \label{2:graka}
+		\end{figure}
+		
+		Auf jeder GPU sitzt ein passiv-Kühler sowie ein separater Lüfter. Abbildung \ref{2:gpucpu} zeigt eine Grafikkarte verbaut in einem gewöhnlichen Desktop Computer.
+		
+		\newpage
+		
+		\begin{figure}[h]
+			\centering
+    		    \includegraphics[height=0.6\textwidth]{chapter2/pictures/pc.pdf}
+    		    \caption[Desktop PC]{Aufbau eines gewöhnlichen Desktop-Computers}
     		    \label{2:gpucpu}
 		\end{figure}
+		
+		Datenverkehr zwischen CPU und GPU erfolgt meistens über \Gls{PCIe}x16 mit einer maximalen physikalischen Bandbreite von 32GB/s (25GB/s ohne Overhead). Sehr hochwertige Karten sind über \gls{nvlink} miteinander verbunden bei einer \Gls{Peak Bandwidth} von 300GB/s, was immer noch weit unter der internen Speicherbandbreite liegt. Kopieranweisungen zwischen CPU und GPU sollte also auf das Minimum reduziert werden.
 		
 		Nvidia bietet im Wesentlichen drei Produktlinien an:
 		\begin{itemize}
 		    \item \textbf{GeForce}: Gaming-Grafikkarten. Berechnungen für Gaming beschränken sich meist auf das Berechnen von Texturen und Ausgabe auf dem Bildschirm. Daher sind diese Karten nicht mit einem Rechenwerk für doppelte Präzision ausgestattet und verlieren einen erheblichen Faktor bei der Performance ($\approx 32$), sollte man 64Bit Arithmetik anwenden.
+		    
+		    \newpage
 		
 		    \item \textbf{Quadro}: Ausgestattet für HPC. Diese verlieren nur den Faktor zwei bei doppelter Präzision. Verwendet werden diese für CAD (Differentialgleichungen lösen und grafisch anzeigen für Belastungsanalysen) oder grafische Simulationen.
-		
-		    \item \textbf{Tesla} wie Quadro, aber ohne Video-Controller. Diese sind im Wesentlichen für Deep-Learning Techniken gedacht. Moderne GPUs beinhalten sogenannte Tensorkerne, die für \textit{deep-convolutional neural networks} optimiert sind. Diese kommen nun vermehrt in Gaming-Karten als Unterstützung für Ray-Tracing Kerne zum Einsatz.
+		    
+		    \begin{center}
+		    \includegraphics[width=0.8\textwidth]{chapter2/pictures/haken.pdf}
+		    
+		    \includegraphics[width=0.6\textwidth]{chapter2/pictures/mesh.pdf}
+		    \end{center}
+
+		    \item \textbf{Tesla} wie Quadro, aber ohne Video-Controller. Diese sind im Wesentlichen für Deep-Learning Techniken gedacht. Moderne GPUs beinhalten sogenannte Tensorkerne, die für \textit{deep-convolutional neural networks} optimiert sind. Diese kommen nun vermehrt in Gaming Karten als Unterstützung für Ray-Tracing Kerne zum Einsatz.
 		\end{itemize}		 		
 		
         Karten aller drei Linien werden nach ihrer Chiparchitektur klassifiziert. Von der ältesten zur modernsten heißen diese: Tesla (nicht verwechseln!), Fermi, Maxwell, Kepler, Pascal, Volta (Weiterentwicklung: Turing)
         
         Zudem existieren Unterkategorien, die in der sogenannten \textit{\gls{compute capability}} zum Ausdruck kommen. Diese ist die wesentlichste Kenngröße einer Nvidia Grafikkarte, da sie bestimmt, welche Features von CUDA in Hardware auf der GPU implementiert sind.		
-		
-        \begin{figure}[h]
-			\centering
-    		    \includegraphics[width=\textwidth]{chapter2/pictures/gpu.png}
-    		    \caption[Grafikkarte]{Teile einer Grafikkarte}
-    		    \label{2:graka}
-		\end{figure}
 		
 		Eine GPU ist im Wesentlichen ein Verbund aus tausenden Kernen, sogenannten \Glspl{Thread}, mit relativ geringer Leistung. Nach dem SIMD Prinzip führen alle Kerne ähnliche Tätigkeiten aus. Die Idee hinter HPC auf GPUs ist, die massive Parallelität für Tätigkeiten auszunutzen, die bestimmte Eigenschaften erfüllen:
 		\begin{itemize}
@@ -88,14 +101,7 @@ Ein Beispiel in diesem Falle wäre das UNIX-Kommando make. Hier können auch mit
 			\item Probleme mit einer geringen \Gls{Arbeit} in jedem parallelen Prozess, z.B. einfache mathematische Formeln.
 			\item Probleme mit geringem Speicherfluss.			
 		\end{itemize}
-			
-		\begin{figure}[h]
-			\centering
-    	        \includegraphics[width=\textwidth]{chapter2/pictures/sm.png}
-    	        \caption[GPU]{Aufbau einer GPU}
-    		    \label{2:gpu}
-		\end{figure}
-		
+
 		Eine GPU wird aufgeteilt in eine bestimmte Anzahl von sogenannten Streaming Multiprocessors (\Gls{SM}). Üblich ist eine geringe zweistellige Anzahl (Abb. \ref{2:gpu}). Diese bestehen wiederum aus den folgenden Komponenten:
 		
 		\begin{itemize}
@@ -105,5 +111,12 @@ Ein Beispiel in diesem Falle wäre das UNIX-Kommando make. Hier können auch mit
 		    \item Special Function Unit (SFU): Erledigt besondere Aufgaben, z.B. shader Berechnungen (später mehr) 
         		\item \Gls{shared Memory}: ein kleiner, extrem schneller Speicher, den sich alle \Glspl{Thread} eines \Gls{SM}s teilen.
 		\end{itemize}
+		
+		\begin{figure}[h]
+			\centering
+    	        \includegraphics[width=\textwidth]{chapter2/pictures/sm.pdf}
+    	        \caption[GPU]{Aufbau einer GPU}
+    		    \label{2:gpu}
+		\end{figure}
 
 		Es ist wichtig, die technischen Details der Hardware zu kennen, um die Software darauf anzupassen. Ein HPC Programm ist üblicherweise genau auf die Hardware zugeschnitten, auf der das Programm laufen soll. Die Generalisierung eines Problems ist nicht trivial und manchmal sogar unmöglich oder nur unter starken \Gls{Performance}verlusten zu erreichen.	
