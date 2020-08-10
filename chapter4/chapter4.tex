@@ -276,7 +276,7 @@
 			
 			Das vorletzte Argument ist ein Pointer auf den Hostspeicher.
 			
-			Mehrere Flags können grundsätzlich über eine Abtrennung mit | gleichzeitig gesetzt werden. Mit der Angabe von \li`CL_TRUE` wird der Host blockiert (\li`CL_FALSE entspricht also \li`cudaMemcpyAsync(...)`). Die Angabe danach gibt einen Offset auf der Speicheradresse an.
+			Mehrere Flags können grundsätzlich über eine Abtrennung mit | gleichzeitig gesetzt werden. Mit der Angabe von \li`CL_TRUE` wird der Host blockiert (\li`CL_FALSE` entspricht also \li`cudaMemcpyAsync(...)`). Die Angabe danach gibt einen Offset auf der Speicheradresse an. Beim Erstellen des Buffers wird noch kein Speicher alloziert. Dies geschieht erst beim Kopieren oder falls \li`CL_MEM_COPY_HOST_PTR` gesetzt wurde.
 							
 			\subsection{Command Queues}
 			Statt \Glspl{Stream} existieren in OpenCL \Glspl{Command Queue}. Jede Speicheranweisung (Kopieren, Lesen) muss in eine \Gls{Command Queue} eingereiht werden. Zum Schluss wird die Warteschlange mit dem \Gls{Kernel} ausgeführt und erzeugt dabei ein Event. Das Lesen des Speichers erfolgt, sobald dieses Event stattgefunden hat. Am Ende wird der Speicher freigegeben.

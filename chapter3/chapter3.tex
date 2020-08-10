@@ -153,18 +153,18 @@
 		\begin{lstlisting}[caption=Vektoraddition shared Memory]
 			__global__ void VecAdd(float* A, float* B, float* C, int N)
 			{
-    			int i = blockDim.x * blockIdx.x + threadIdx.x;
-    			int tid = threadIdx.x;
+    			    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    			    int tid = threadIdx.x;
     			
-    			__shared__ float As[<blockDim.x>];
-    			__shared__ float Bs[<blockDim.x>]; 			
-    			if (i < N)
-    			{
-    			    As[tid] = A[i];
-    			    Bs[tid] = B[i];  
-    			    ...	    
-        			C[i] = As[tid] + B[tid];
-        		}
+    			    __shared__ float As[<blockDim.x>];
+    			    __shared__ float Bs[<blockDim.x>]; 			
+    			    if (i < N)
+    			    {
+    			        As[tid] = A[i];
+    			        Bs[tid] = B[i];  
+    			        ...	    
+        			    C[i] = As[tid] + B[tid];
+        		    }
 			}
 		\end{lstlisting}
 		
@@ -190,26 +190,41 @@
 		Der \gls{constant Memory} ist ebenfalls ein globaler Speicher und steht jedem \Gls{Thread} zur Verfügung. Allerdings müssen Aufrufe der selben Stelle im Speicher zur selben Zeit innerhalb eines \Glspl{Warp} (Bankkonflikt) nicht serialisiert werden. Daher eignet sich dieser Speicher besonders für konstante Skalare, z.B. Naturkonstanten.
 		
 		\subsection{Texture Memory}
+		In diesem Skript wird nicht auf das Rendering von Texturen eingegangen. Als Einstieg empfiehlt sich ein Tutorial in OpenGL (siehe z.B. \url{https://learnopengl.com}).
 		
 		\subsection{Host Memory}
+		Das Cuda \Gls{API} stellt ebenfalls Funktionen für Host Speicher bereit. Mit der Funktion \li`cudaHostAlloc(void** hostPtr, size_t size, unsigned int  flags)` lässt sich Host Speicher der entsprechenden Grö\ss e unter dem angegebenen Pointer allozieren. Bei diesem Speicher handelt es sich jedoch um pinned Memory, auch \gls{page-locked Memory} genannt. Dieser Speicher darf vom Betriebssystem nicht verschoben werden und kann daher vom Grafikkartentreiber besonders schnell transportiert werden. Diese Methode ist ebenfalls für asynchrones Kopieren erforderlich (siehe \ref{streams}). Allerdings kann exzessives Allozieren auf diese Art selbst zusätzliche Zeit Kosten. Daher wird dieser Speicher normalerweise verwendet, um Bereiche für den Transfer zwischen Host und Device zu definieren. Pinned Memory wird mit \li`cudaFreeHost(void* hostPtr)` freigegeben.
+		
+		Die Grundeinstellung bei den \enquote{flags} ist \li`cudaHostAllocDefault` (alternativ auch \li`cudaMallocHost(void** hostPtr, size_t size)`).
+		
+		Durch \li`cudaHostAllocPortable` wird der Speicher als page-locked von allen Cuda Kontexten betrachtet.
+		
+		Mit \li`cudaHostAllocMapped` wird der Speicher zusätzlich in den Adressraum der Grafikkarte gemappt. Dadurch kann die GPU auf den Speicher über direct Memory Access (DMA) ohne explizite Kopie zugreifen. Diese Einstellung eignet sich für unified Memory Architectures (UMA), also Systeme, bei denen sich GPU und CPU den selben Speicher teilen. \li`cudaHostGetDevicePointer(void** devicePtr, void* hostPtr, unsigned int flags)` holt den entsprechenden Device Pointer.
+		
+		Die \li`cudaHostAllocWriteCombined` Konfiguration kann bei manchen PCIe Systemen effizienter transferiert werden, wird aber von den meisten CPUs nicht so effizient gelesen. Dieser Speicher eignet sich für Buffer, die einmalig von der CPU geschrieben und dann vom Device über mapped pinned Memory oder über Host zu Device Transfer gelesen werden.
+		
+		Kombinationen sind ebenfalls möglich.
+		
+		Es gibt unzählige Methoden zum effizienten Allozieren von Speicher sowohl für GPU als auch für GPU. Die Auflistung der Cuda \Gls{API} Funktionen befindet sich in Kapitel 5.9 der Cuda Runtime API Dokumentation. \autocite{cudaRTAPI}
 		
 		\newpage
+		
 		\section{Mehrdimensionale Bl\"ocke}
 		Bisher wurden \Gls{Kernel} immer nur mit eindimensionalen \Glspl{Block}n und \Glspl{Grid} ausgeführt. Allerdings verbirgt sich dahinter ein Typecast. Zum Beispiel wird \li`<<<1,N>>>` zu \li`<<<dim3(1,1,1), dim3(N,1,1)>>>`. \li`dim3` bezeichnet dabei eine eingebaute Datenstruktur, die aus drei vorzeichenlosen Ganzzahlen besteht. In diesem Fall gibt sie die Anzahl der \Glspl{Block} im \Gls{Grid} bzw. der \Glspl{Thread} pro \Gls{Block} in die Raumrichtungen \li`(x,y,z)` an. Das \Gls{Grid} und die \Glspl{Block} sind also keine Ketten sondern Quader von Objekten. Die Indizes der \Glspl{Block} und \Glspl{Thread} lassen sich dann Spalten-, Zeilen- und Ebenen-weise abfragen: 			
-		\begin{lstlisting}[caption=Multidimensionale Blöcke]
-			__global__ test()
-			{
-				int row = blockIdx.y * blockDim.y + threadIdx.y;
-				int col = blockIdx.x * blockDim.x + threadIdx.x;
-				...
-			}
-    		
-    		...
-
-		    dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
-    		dim3 dimGrid(GRID_SIZE, GRID_SIZE;
-    		test<<<dimGrid, dimBlock>>>();
-		\end{lstlisting}
+        \begin{lstlisting}[caption=Multidimensionale Blöcke]
+        __global__ test()
+        {
+            int row = blockIdx.y * blockDim.y + threadIdx.y;
+            int col = blockIdx.x * blockDim.x + threadIdx.x;
+            ...
+        }
+        
+        ...
+        
+            dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
+            dim3 dimGrid(GRID_SIZE, GRID_SIZE);
+            test<<<dimGrid, dimBlock>>>();
+        \end{lstlisting}
         In diesem Fall werden also \Glspl{Block} der Größe \li`BLOCK_SIZE`$\times$\li`BLOCK_SIZE` in einem \Gls{Grid} mit \li`GRID_SIZE`$\times$\li`GRID_SIZE` \Glspl{Block}n angeordnet. Bei modernen GPUs ist die Obergrenze für die Dimension der \Glspl{Block} \li`(1024,1024,64)`.
         
         Das folgende Beispiel behandelt die Matrixmultiplikation unter Zuhilfenahme von \gls{shared Memory} und Multidimensionalen \Glspl{Block}n:       
@@ -288,7 +303,7 @@
   		\centering
   		\scalebox{1.3}{
   		\begin{tikzpicture}
-    		\begin{axis}[/pgf/number format/.cd, use comma, 1000 sep={}, xlabel={dimension $n$}, ylabel={computation time / sec.}, legend pos=outer north east, legend style={cells={align=left}}]
+    		\begin{axis}[/pgf/number format/.cd, use comma, 1000 sep={}, xlabel={number of columns/rows $n$}, ylabel={computation time / sec.}, legend pos=outer north east, legend style={cells={align=left}}]
       		\addplot [draw=UR@color@12!50!black, mark=*, only marks, mark options={scale=.5}, fill=UR@color@12!50!white]   table[x index=0, y index=1]{chapter3/plots/matmul.dat};
       		\addlegendentry{ohne shared memory}
       		\addplot [draw=gray!50!black, mark=*, only marks, mark options={scale=.5}, fill=gray!50!white] table[x index=0, y index=2]{chapter3/plots/matmul.dat};
@@ -410,14 +425,14 @@
 			cudaMallocHost(&hostPtr, stream_num * size);	
 			//inputDevPtr allozieren und kopieren//
 			cudaStream_t stream[stream_num];
-			for (int i = 0; i < stream_num; ++i)
+			for (size_t i = 0; i < stream_num; ++i)
 			{
 				cudaStreamCreate(&stream[i]);
     			
 				cudaMemcpyAsync(inputDevPtr + i * size, hostPtr + i * size,
 					size, cudaMemcpyHostToDevice, stream[i]);
     			
-				MyKernel <<<100, 512, 0, stream[i]>>>
+				MyKernel <<<..., ..., 0, stream[i]>>>
 					(outputDevPtr + i * size, inputDevPtr + i * size, size);
 				
 				cudaMemcpyAsync(hostPtr + i * size, outputDevPtr + i * size,
@@ -427,7 +442,7 @@
 			}
 		\end{lstlisting}
 
-		Die Idee dahinter ist, die CPU möglichst wenig zu blockieren (Asynchronizität, non-blocking) und möglichst viele \Gls{Kernel} gleichzeitig auszuführen (Concurrency, siehe \ref{async}). Da ein normaler Kopierbefehl automatisch synchronisiert, muss die Kopie asynchron erfolgen (\li`cudaMemcpyAsync`). Mittels \li`cudaMallocHost` wird dafür sog. \gls{page-locked Memory} alloziert. Dieser Speicher darf vom Betriebssystem nicht verschoben werden und kann daher immer unter der selben Speicheradresse gefunden werden. \Glspl{Kernel} werden automatisch non-blocking ausgeführt.
+		Die Idee dahinter ist, die CPU möglichst wenig zu blockieren (Asynchronizität, non-blocking) und möglichst viele \Gls{Kernel} gleichzeitig auszuführen (Concurrency, siehe \ref{async}). Da ein normaler Kopierbefehl automatisch synchronisiert, muss die Kopie asynchron erfolgen (\li`cudaMemcpyAsync`). Mittels \li`cudaMallocHost` wird dafür \gls{page-locked Memory} alloziert. \Glspl{Kernel} werden automatisch non-blocking ausgeführt.
 		
 		Wird kein \Gls{Stream} angegeben, so wird der default-\Gls{Stream} verwendet.
 		
@@ -496,16 +511,53 @@
 		
 		
 		\subsection*{\textcolor{red}{Divergenz}}
-		Synchronisation ist nicht nur aufgrund von Abhängigkeiten in Algorithmen notwendig. \Glspl{Thread} innerhalb eines \Glspl{Warp} müssen zur selben Zeit die selben Instruktionen erhalten. Ist dies im Programm nicht der Fall, z.B. durch if-else Verzweigungen, müssen diese Anweisungen serialisiert werden. Führen innerhalb eines jeden \Glspl{Warp} die \Glspl{Thread} paarweise unterschiedliche Instruktionen aus, so verliert man den Faktor 32 in der \Gls{Performance}. Diese sogenannte Divergenz kann nach jeder if-Anweisung oder abgebrochener Schleife auftreten und sollte so schnell wie möglich durch Synchronisierung aufgelöst werden. 
+		Synchronisation ist nicht nur aufgrund von Abhängigkeiten in Algorithmen notwendig. \Glspl{Thread} innerhalb eines \Glspl{Warp} müssen zur selben Zeit die selben Instruktionen erhalten. Ist dies im Programm nicht der Fall, z.B. durch if-else Verzweigungen, müssen diese Anweisungen serialisiert werden. Führen innerhalb eines jeden \Glspl{Warp} die \Glspl{Thread} zum Beispiel paarweise unterschiedliche Instruktionen aus (\li`if(idx\%2 == 0) ...`), so verliert man den Faktor zwei in der \Gls{Performance}. Diese sogenannte Divergenz kann durch jede if-else Verzweigung oder vorzeitig abgebrochene Schleifen auftreten und sollte unbedingt vermieden werden (siehe z.B. Abschnitt \ref{red}). Asynchrones Arbeiten sollte so schnell wie möglich durch Synchronisierung aufgelöst werden. 
 		
 		\section{gro\ss e Datenmengen}\label{data}
+		\subsection*{Aufteilung der Daten}
 		Sollten die Daten, die für eine bestimmte Rechnung nötig sind, zu groß für den \Gls{global Memory} der GPU sein, so muss das Problem in kleinere Einheiten aufgeteilt werden. Bei der Vektoraddition ist dies kein Problem, da der Input in kleinere Teile geteilt und einzeln addiert werden kann. 
 		
-		Andere Probleme erfordern aber die kompletten Daten, zum Beispiel die Matrixmultiplikation. Bei komplexeren Problemen wird es zur Hauptaufgabe des Programmierers, den Algorithmus so anzupassen, dass dieser aufgeteilt werden kann und die verschiedenen \Glspl{Kernel} miteinander wechselwirken können. Ein einfaches Beispiel dafür wäre die Summenreduktion, bei der von Teilarrays die Summe gebildet wird und diese Teilsummen dann wieder parallel aufsummiert werden (siehe Abschnitt \ref{red}). 
+		Andere Probleme erfordern aber die kompletten Daten, zum Beispiel die Matrixmultiplikation. Bei komplexeren Problemen wird es zur Hauptaufgabe des Programmierers den Algorithmus so anzupassen, dass dieser aufgeteilt werden kann und die verschiedenen \Glspl{Kernel} miteinander wechselwirken können. Ein einfaches Beispiel dafür wäre die Summenreduktion, bei der von Teilarrays die Summe gebildet wird und diese Teilsummen dann wieder parallel aufsummiert werden (siehe Abschnitt \ref{red}). 
 		
-		Da nun für die Daten lediglich ein zu kleines Array bereitsteht, in das wiederholt geschrieben werden muss, müssen die Anweisungen wieder in Reihe geschehen. Allerdings können sich die Kopie zurück auf den Host und die folgende Kopie auf das Device immer noch überlappen. Folgendes Beispiel modifiziert jenes aus Abschnitt \ref{streams} so, dass alle Operationen auf Teilarrays in Reihe geschehen, die Kopieranweisungen aber überlappen. Dazu werden alle Operationen verschiedenen \Glspl{Stream} zugeordnet. Explizite Synchronisierung verhindert jedoch eine verfrühte Addition oder Kopie.
+		Da nun für die Daten lediglich ein zu kleines Array bereitsteht, in das wiederholt geschrieben werden muss, müssen die Anweisungen wieder in Reihe geschehen. Allerdings können sich die Kopie zurück auf den Host und die folgende Kopie auf das Device immer noch überlappen. Folgendes Beispiel modifiziert jenes aus Abschnitt \ref{streams} so, dass alle Operationen auf Teilarrays in Reihe geschehen, die Kopieranweisungen aber überlappen. Dazu werden alle Operationen verschiedenen \Glspl{Stream} zugeordnet. Explizite Synchronisierung verhindert jedoch eine verfrühte Addition oder Kopie. Die Grö\ss e der einzelnen Teile sollte dabei möglichst gro\ss\ ~gewählt werden, da der Treiber für gro\ss e Datenmengen optimiert ist. Bei der Vektoraddition sollte also jeder Vektor in Teile von einem Drittel der Grö\ss e des gesamten Speichers geteilt werden. Sollte das Aufteilen nicht aufgehen, muss in der letzten Iteration noch die Anzahl der Blöcke angepasst werden.
 		
-		........
+		\begin{lstlisting}[caption=Datenaufteilung]
+			uint number_of_copies = ...;
+			uint size = ...;
+			float* h_A, h_B, h_C;
+			cudaMallocHost(&h_A, number_of_copies*size);
+			cudaMallocHost(&h_B, number_of_copies*size);
+			cudaMallocHost(&h_C, number_of_copies*size);
+				
+			float* d_A, d_B, d_C;
+			cudaMalloc(&d_A, size);
+			cudaMalloc(&d_B, size);
+			cudaMalloc(&d_C, size);
+			
+			
+			cudaStream_t stream;
+			cudaStreamCreate(&stream);
+			
+			for(size_t i = 0; i < number_of_copies; ++i)
+			{
+				cudaMemcpyAsync(d_A, h_A + i * size,
+					size, cudaMemcpyHostToDevice, stream);
+				cudaMemcpyAsync(d_A, h_A + i * size,
+					size, cudaMemcpyHostToDevice, stream);
+					
+				cudaStreamSynchronize(stream);
+    			
+				VecAdd<<<(size+256-1)/size, 256, 0, stream>>>(d_A, d_B, d_C, size);
+				
+				cudaStreamSynchronize(stream);
+				
+				cudaMemcpyAsync(h_C + i * size, d_C,
+					size, cudaMemcpyDeviceToHost, stream);
+			}
+			
+			cudaStreamDestroy(stream);
+			//free memory
+		\end{lstlisting}
 		
 		\subsection*{Unified (Virtual) Memory}
 		Das manuelle Kopieren von Speicher ist oft sehr mühselig. Daher hat Nvidia den Grafiktreiber soweit entwickelt, dass dies mittlerweile weitestgehend automatisch möglich ist. Dafür wurde eine spezielle Art der virtuellen Speicherverwaltung implementiert, bei der CPU und GPU Speicher in den selben Adressraum abgebildet wird. 
@@ -514,6 +566,8 @@
 		\li`float ∗d_A; cudaMallocManaged(&d_A, size);` 
 		
 		einen einzelnen Pointer, der sowohl von GPU als auch von CPU aus erreichbar ist. Alternativ lässt sich das Keyword \li`__managed__` für globale Arrays (auch in Verbindung mit \li`__device__`) benutzen.
+		
+		\newpage
 		
 		\textbf{Begriffsklärung:}\\
 		Da es sich um einen einzelnen Pointer handelt, ist der Begriff \textit{Unified Memory} theoretisch gerechtfertigt. Es handelt sich jedoch nur um eine Art von virtueller Speicherverwaltung. \enquote{Virtuell} bezieht sich dabei auf den Speicher, nicht auf die Verwaltung. Bei \textit{Unified Memory} spricht man üblicherweise von Systemen, in denen sich CPU und GPU physisch den selben Speicher teilen. Dies ist z.B. oft bei Einplatinencomputern der Fall. Man spricht von einer \textit{Unified Memory Architecture (UMA)}. Geht es bei dem Zugriff um die parallele Nutzung innerhalb eines symmetrischen Multiprozessorsystems, so spricht man von \textit{Uniform Memory Access}, ebenfalls \textit{UMA}. Aus offensichtlichen Gründen wird hierbei auch von \textit{Shared Memory} gesprochen. Dies sollte aber auf keinen Fall mit CUDA \Gls{shared Memory} verwechselt werden.
@@ -528,11 +582,17 @@
 		\begin{itemize}
 		    \item Initialisieren der Daten in einem eigenen \Gls{Kernel} anstatt im Speicher der CPU
 		    \item Mehrmaliges Ausführen des \Gls{Kernel}s und Analysieren der mittleren Laufzeit mit \li`nvprof`
-	    	    \item Explizites Kopieren: Um die \textit{Page Migration Engine} explizit zu benutzen existiert der Befehl \li`cudaMemPrefetchAsync(d_A, size, deviceID, stream)`. Ein Wert von -1 bei der deviceID bezeichnet die CPU.
+	    	    \item Explizites Kopieren: 
+	    	    
+	    	    Um die \textit{Page Migration Engine} explizit zu benutzen existiert der Befehl \li`cudaMemPrefetchAsync(d_A, size, deviceID, stream)`. Ein Wert von -1 bei der deviceID bezeichnet die CPU.
 		\end{itemize}
-		Genauere Informationen unter \url{https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html#group__CUDART__MEMORY_1ge8dc9199943d421bc8bc7f473df12e42}.
+		Genauere Informationen unter 
 		
-		Außerdem kann mittels \li`cudaMemAdvise(d_A, size, advice, deviceID)` das Verhalten der Engine geführt werden. Mehr unter \url{https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html#group__CUDART__MEMORY_1ge37112fc1ac88d0f6bab7a945e48760a}.
+		\url{https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html#group__CUDART__MEMORY_1ge8dc9199943d421bc8bc7f473df12e42}.
+		
+		Außerdem kann mittels \li`cudaMemAdvise(d_A, size, advice, deviceID)` das Verhalten der Engine geführt werden. Mehr unter 
+		
+		\url{https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html#group__CUDART__MEMORY_1ge37112fc1ac88d0f6bab7a945e48760a}.
 
 		\section{Datentypen}
 		Auf GPUs existiert ein 16 Bit Datentyp mit halber Präzision. Benutzt man die in CUDA eingebauten arithmetischen Funktionen, kann man die Performance dadurch weiter verbessern.			
@@ -543,15 +603,13 @@
 		__global__
 		void haxpy(int n, half a, const half *x, half *y)
 		{
-    		int start = threadIdx.x + blockDim.x * blockIdx.x;
-    		int stride = blockDim.x;
-
+    		    int start = threadIdx.x + blockDim.x * blockIdx.x;
+    		    int stride = blockDim.x;
 			int n2 = n/2;
 			half2 *x2 = (half2*)x, *y2 = (half2*)y;
 
 			for (int i = start; i < n2; i+= stride) 
 					y2[i] = __hfma2(__halves2half2(a, a), x2[i], y2[i]);
-
 
 			if (start == 0 && (n%2))
 					y[n-1] = __hfma(a, x[n-1], y[n-1]);
@@ -590,6 +648,7 @@
 				__syncthreads();
 				if(tid < stride) sm[tid] += sm[tid + stride];
 			}
+			
 			if (tid < 32)
   			{
 				sm[tid] += sm[tid + 32];
@@ -603,10 +662,13 @@
 			if(tid == 0) data[blockIdx.x] = sm[0];
 		}
 		
+		
 			...
+			
 			uint maxThreads = ...;
 			uint threads = (n < maxThreads) ? n : maxThreads;
 			uint blocks = n/threads;
+			
 
 			uint smSize = threads*sizeof(int);
 
@@ -614,6 +676,7 @@
 
 			uint toDo = 0;
 			if (blocks > 1) toDo = 1 + blocks/maxThreads;
+			
 			for(uint i = 0; i < toDo; ++i)
 			{
 				threads = (blocks < maxThreads) ? blocks : maxThreads;
@@ -626,6 +689,7 @@
 		Verschiedene HPC Librarys bieten Implementierungen der gängigsten Reduktionen an, z.B. THRUST oder MAGMA. 
 		
 		\section{Dynamischer Parallelismus}\label{dyn}
+		Seit der Pascal Architektur ist es möglich, sowohl Allozierungen als auch \Gls{Kernel}aufrufe direkt von der GPU übernehmen zu lassen. Dies wird als dynamischer Zum Kompilieren muss der Befehl \li`nvcc <name>.cu -arch=compute_61 -code=sm_61 -rdc=true -lcudadevrt` verwendet werden (oder höhere Architektur, siehe Abschnitt \ref{tools}).
 		\begin{lstlisting}[caption=Dynamischer Parallelismus]
 			...
   			kernel_parent<<<1,1>>>(device, &N);
@@ -681,7 +745,6 @@
 		}
 		\end{lstlisting}
 		
-		Kompilieren: \li`nvcc dynpar.cu -arch=compute_61 -code=sm_61 -rdc=true -lcudadevrt`
 		
 		\section{CUDA-Toolkit}
 		Folgende Informationen beziehen sich auf die aktuellste Version (11.0).
@@ -689,24 +752,33 @@
 			\subsection{Baumstruktur}\label{tree}
 			Bei Installation des CUDA-Toolkits werden im Installationsordner verschiedene Unterordner erstellt. Die wichtigsten sind:
 			\begin{itemize}
-			    \item \textbf{bin}\\ enthält CUDA Tools, siehe \ref{tools}
+			    \item \textbf{bin}\\ enthält CUDA Tools und dynamische Windows Librarys, siehe \ref{tools}
 			    \item \textbf{doc}\\ enthält die Dokumentationen der Librarys als HTML und pdf sowie die man-Pages
 			    \item \textbf{include}\\ enthält die CUDA Header
-			    \item \textbf{lib}\\ enthält die dynamischen und statischen CUDA Librarys, möglicherweise Link auf Unterordner
-			    \item \textbf{lib64}\\ enthält die dynamischen und statischen CUDA Librarys, möglicherweise Link auf Unterordner
+			    \item \textbf{lib64}\\ enthält die statischen Librarys und die dynamischen Linux Librarys, möglicherweise Link auf Unterordner
+			    
+			    Unter Windows hei\ss t dieser nur \textbf{lib} und enthält Unterordner für die 32 und 64 Bit Variante
 			\end{itemize}
+			Weiter Unterordner können für die \textit{Nsight IDE} oder die offiziellen Samples hinzukommen. Letztere unterscheiden sich für jede Toolkit Version und müssen getrennt kompiliert werden.
+			
 			\subsection{NVCC}\label{tools}
-			Der Nvidia CUDA Compiler (\gls{nvcc}) wird benutzt um sowohl Host- als auch Devicecode zu kompilieren. Es lässt sich alles bis zum C++17 Standard in C oder C++ kompilieren. Soll explizit Devicecode kompiliert werden, so muss die Quelldatei die Dateiendung \li`.cu` tragen. Andernfalls wird der Code als gewöhnliches C++ kompiliert und der Compiler liefert Fehler, sobald er auf Devicecode stößt.
+			Der Nvidia CUDA Compiler (\gls{nvcc}) wird benutzt um sowohl Host- als auch Devicecode zu kompilieren. Es lässt sich alles bis zum C++17 Standard in C oder C++ kompilieren. Soll explizit Devicecode kompiliert werden, so muss die Quelldatei die Dateiendung \li`.cu` tragen. Andernfalls wird der Code als gewöhnliches C++ kompiliert und der Compiler liefert Fehler, sobald dieser auf Devicecode stößt.
 		
 			Der Compiler wird wie gewohnt gestartet:
 		
 			\li`nvcc <name>.cu`
 		
-			Der Compiler kompiliert nun getrennt Hostcode wie gewohnt mittels g++-9 (clang-9 unter MacOS, cl.exe VS19 unter Windows) oder geringeren Versionen, Devicecode aber in eine Sprache ähnlich Assembler namens \textit{Nvidia Parallel Thread Execution} (\Gls{NVPTX}). Aus dieser kann Maschinencode erstellt werden, der für die GPU lesbar ist. Der Compiler erstellt ein sogenanntes \textit{fatbinary}, kompiliert also Device- und Hostcode in die selbe ausführbare Datei. Um dies zu verhindern, kann die Option \li`-cubin` verwendet werden. Damit wird der Devicecode in ein eigenes Binary kompiliert, ein sogenanntes \textit{cubin}. Im Handbuch des \gls{nvcc} \autocite{cudaNVCC} befindet sich eine Liste der Compilerflags. Diese sind in den wesentlichen Punkten kompatibel zu g++ mit Ausnahme einiger spezieller Modi für Devicecode.
+			Der Compiler kompiliert nun getrennt Hostcode wie gewohnt mittels g++-9 (clang-9 unter MacOS, cl.exe VS19 unter Windows) oder geringeren Versionen, Devicecode aber in eine Sprache ähnlich Assembler namens \textit{Nvidia Parallel Thread Execution} (\Gls{NVPTX}). Dabei handelt es sich um eine \textit{intermediate Representation}, also Source Code innerhalb einer virtuellen Device Architektur. Aus dieser kann Maschinencode erstellt werden, der für die GPU lesbar ist. Mit der Option \li`-ptx` kann der Compiler an dieser stelle gestoppt werden. Die Ausgabedatei mit der Endung .ptx kann so weiteren Analysen unterzogen werden.
+			
+			Anschlie\ss end wird der Code dieser virtuellen Architektur in eine Binärdatei einer real existierenden übersetzt. Die Option \li`-cubin` kann verwendet werden, um diese Datei explizit zu analysieren. Damit wird der Devicecode in ein eigenes Binary kompiliert, ein sogenanntes \textit{cubin}. 
+			
+			Erst nach diesem Prozess wird dieses Cubin in die Objektdatei des Hostcodes eingebettet. Abschlie\ss end wird aus dieser Objektdatei (evtl. mit weiteren Objekten oder Librarys) wie gewohnt mit dem Hostlinker eine ausführbare Binärdatei erstellt.
+			
+			Im Handbuch des \gls{nvcc} \autocite{cudaNVCC} befindet sich eine Liste der Compilerflags. Diese sind in den wesentlichen Punkten kompatibel zu g++ mit Ausnahme einiger spezieller Modi für Devicecode.
 		
-			Die wichtigste Ausnahme ist: \li`-arch=compute_35 -code=sm_35`
+			Die wichtigste Ausnahme ist: \li`-arch=compute_52 -code=compute_52,sm_52` (default)
 		
-			Dieses lässt den Code explizit für eine \gls{compute capability} kompilieren, in diesem Fall 3.5 (default: 3.0). Damit lassen sich Features dieser \gls{compute capability} aktivieren. Allerdings ist der Code auf älteren Karten dann nicht mehr ausführbar (falls modernere Features verwendet wurden). \enquote{Arch} (Architecture) bezeichnet dabei das Chipdesign, \enquote{Code} die Software. Gibt man mehrere Optionen an (getrennt mit Komma) an, so werden Cubins für alle Architekturen erstellt und in einem einzelnen Fatbinary verschmolzen. Beim Ausführen wird dann automatisch die richtige Architektur erkannt. Wählt man als Version $x.0$, so wird der Quellcode im Binary hinterlegt. Wird dieses dann auf einem Device mit \gls{compute capability} $x.y$ ($y \geq 0$) ausgeführt, so wird dieser Quellcode just-in-time (zur Laufzeit) entsprechend kompiliert und im Cache gespeichert. 
+			Dieses lässt den Code explizit für eine \gls{compute capability} kompilieren. Die Option \li`-arch` bezeichnet dabei die virtuelle Architektur. Damit lassen sich Features dieser \gls{compute capability} aktivieren. Allerdings ist der Code auf älteren Karten dann nicht mehr ausführbar. Daher sollte diese Option möglichst gering gewählt werden. Die Option \li`-code` bezeichnet die reale Architektur, für die der Devicecode kompiliert werden soll. \li`sm_xx` spezifiziert die Cubin Version, \li`compute_xx` die ptx Version. Da höhere Versionen normalerweise besseren Code generieren, sollte diese möglichst hoch gewählt werden. Natürlich darf die Version die der gewünschten GPU nicht überschreiten. Gibt man mehrere Optionen (getrennt mit Komma) an, so werden Cubins und ptx für alle angegebenen Architekturen erstellt und in einem einzelnen Fatbinary verschmolzen, bevor dieses mit der Objektdatei des Hostcodes verbunden wird. Beim Ausführen wird dann vom Treiber automatisch die richtige Architektur erkannt und geladen. Die Option \li`-fatbin` erstellt dieses Fatbinary separat zur Analyse. Wählt man als Version \li`compute_x0`, so wird der ptx Quellcode im Binary hinterlegt. Wird dieses dann auf einem Device mit höherer \gls{compute capability} ausgeführt und das richtige Cubin steht nicht zur Verfügung, so wird dieser Quellcode just-in-time (zur Laufzeit) entsprechend kompiliert und im Cache gespeichert. Eine genauere Beschreibung des Verhaltens des Compilers kann in der NVCC Dokumentation \autocite{cudaNVCC} nachgelesen werden. Um die maximale Kompatibilität einer Anwendung zu gewährleisten, sollte im Compatibility Guide der GPU Generation die unterstützten Architekturen nachgeschlagen werden und mit der Unterstützung des Toolkits abgeglichen werden. Für die Pascal Generation kann z.B. \url{https://docs.nvidia.com/cuda/pascal-compatibility-guide/index.html#building-pascal-compatible-apps-using-cuda-8-0} konsultiert werden. Die Toolkit Version 11.0 z.B. betrachtet alles unter \Gls{compute capability} 5.2 als veraltet, Fermi oder Tesla wird nicht mehr unterstützt.
 		
 			Mit \li`-c` lassen sich wie gewohnt Objektdateien (\li`.o`) und damit statische und dynamische Librarys (\li`-shared`) erstellen.
 		
@@ -716,10 +788,51 @@
 			Das Verhalten des Compilers kann über verschiedene Umgebungsvariablen gesteuert werden. Eine Liste befindet sich im Anhang J des CUDA Programming Guides. \autocite{cudaPG} 
 		
 			Eine Objektdatei oder eine Bibliothek kann auch zusammen mit einer gewöhnlichen C++ Datei (.cpp) gelinkt werden. Dazu muss aber unter Umständen diese Datei die entsprechenden Header (z.B. cuda.h oder cuda{\_}runtime.h) inkludieren und evtl. mit \textit{libcudart} (-lcudart) linken. Dies kann man nutzen, um Devicecode in eigene Librarys (statisch wie dynamisch) auszulagern und diesen damit von Hostcode strikt zu trennen. Dadurch lassen sich auch andere Compiler und deren Features mit CUDA kombinieren, z.B. der Intel- oder PGI-Compiler. Unter Umständen müssen dem Hostcompiler die Pfade zu \textit{include} und \textit{lib} (siehe \ref{tree}) mit \li`-I` und -\li`-L` bekannt gemacht werden.
+			
 			\subsection{cuda-memcheck}
+            Ein funktional korrektes Programm sollte unbedingt mit diesem Tool auf Speicherfehlzugriffe überprüft werden. Device Code ist relativ resistent gegen diese Art von Fehlern. Unter Umständen ist der Rückgabewert eines \Gls{Kernel} ein Erfolg, obwohl mehrere Speicherfehler im Device Code auftraten.		
+			
 			\subsection{nvprof}
+            Der Nvidia Profiler analysiert alle Aufrufe des \Gls{API} oder von \Gls{Kernel} und listet diese nach ihrer Laufzeit. Damit lassen sich Bottlenecks schnell identifizieren. Folgender Output ergibt sich aus der Vektoraddition:
+            
+            \begin{lstlisting}[caption=nvprof Output]   
+==10677== Profiling application: ./a.out
+==10677== Profiling result:
+Type  Time(%)      Time     Calls       Avg       Min       Max  Name      
+GPU activities:   61.47%  10.464us         2  5.2320us  5.2160us  5.2480us  
+                      [CUDA memcpy HtoD]
+                  25.75%  4.3840us         1  4.3840us  4.3840us  4.3840us  
+                      [CUDA memcpy DtoH]
+                  12.78%  2.1760us         1  2.1760us  2.1760us  2.1760us  
+                      VecAdd(float*, float*, float*, int)                           
+     API calls:   99.64%  146.77ms         3  48.923ms  2.6720us  146.76ms  
+                      cudaMalloc
+                   0.10%  145.98us         1  145.98us  145.98us  145.98us  
+                      cuDeviceTotalMem
+                   0.09%  130.61us       101  1.2930us     139ns  54.626us  
+                      cuDeviceGetAttribute
+                   0.06%  91.227us         3  30.409us  4.1460us  74.231us  
+                      cudaFree
+                   0.06%  85.256us         3  28.418us  17.033us  42.069us  
+                      cudaMemcpy
+                   0.03%  44.471us         1  44.471us  44.471us  44.471us  
+                      cudaLaunchKernel
+                   0.01%  19.881us         1  19.881us  19.881us  19.881us  
+                      cuDeviceGetName
+                   0.01%  12.768us         1  12.768us  12.768us  12.768us  
+                      cuDeviceGetPCIBusId
+                   0.00%  2.0650us         3     688ns     211ns  1.3580us  
+                      cuDeviceGetCount
+                   0.00%     793ns         2     396ns     151ns     642ns 
+                      cuDeviceGet
+                   0.00%     287ns         1     287ns     287ns     287ns  
+                      cuDeviceGetUuid
+            \end{lstlisting}
+            
 			\subsection{Nvidia Nsight}
 			    \subsubsection*{Eclipse Edition}
+			    Unter Linux wird eine Eclipse Abwandlung als Teil des Toolkits installiert, die die genannten Programme, den grafischen Profiler nvvp und den Cuda Debugger enthält.
+			    
                     \begin{figure}[h]
 			            \centering
 			            \includegraphics[width=\textwidth]{chapter3/pictures/NEplugin.png}
@@ -739,7 +852,9 @@
 			            \label{fig3:neact}
 			        \end{figure}
 			        \FloatBarrier
+			        
 			    \subsubsection*{Visual Studio Extension}
+			    Bei der Installation des Toolkits unter Windows wird eine Installation von Visual Studio automatisch erkannt. So lässt sich optional Nsight als Plugin für VS installieren. Dieses enthält ebenfalls die genannten Programme. Das Profiling ist allerdings nicht grafisch in einem Zeitdiagramm aufbereitet (wie mit nvvp). Es lassen sich jedoch auch andere GPU Systeme analysieren, wie z.B. OpenCL, OpenGL oder DirectX.
                     \begin{figure}[h]
 			            \centering
 			            \includegraphics[width=\textwidth]{chapter3/pictures/VSplugin.png}
@@ -765,6 +880,77 @@
 			            \label{fig3:vsapi}
 			        \end{figure}
 			        \FloatBarrier
+			        
 			\subsection{nvprune}
+			Dieses Tool akzeptiert Objektdateien oder Librarys und extrahiert bestimmte Architekturen, z.B.
+			
+			\li`nvprune -arch sm_70 libcublas_static.a -o libcublas_static70.a`
+			
+			Genauere Informationen unter \autocite{cudaBU}.
+			
 			\subsection{nvdisasm und cuobjdump}
+			Nvdisasm und cuobjdump analysieren Informationen in Cubins, z.B. Cache Konfigurationen beim Kompilieren. Letzteres akzeptiert ebenfalls Device Code in Host Binarys, gibt aber weniger Informationen aus. Folgende Auflistung beinhaltet die ersten Zeilen der Ausgabe von nvdisasm bezogen auf das Beispiel der Vektoraddition (Cubin): 
+			
+			\begin{lstlisting}[caption=nvdisasm Output] 
+.headerflags	@"EF_CUDA_TEXMODE_UNIFIED EF_CUDA_64BIT_ADDRESS EF_CUDA_SM52 EF_CUDA_VIRTUAL_SM(EF_CUDA_SM52)"
+.elftype	@"ET_EXEC"
+
+
+//--------------------- .nv.info
+.section	.nv.info,"",@"SHT_CUDA_INFO"
+.align	4
+
+
+//----- nvinfo : EIATTR_REGCOUNT
+.align		4
+    /*0000*/ 	.byte	0x04, 0x2f
+    /*0002*/ 	.short	(.L_3 - .L_2)
+	            .align		4
+.L_2:
+    /*0004*/ 	.word	index@(_Z6VecAddPfS_S_i)
+    /*0008*/ 	.word	0x00000008
+
+
+//----- nvinfo : EIATTR_MAX_STACK_SIZE
+.align		4
+.L_3:
+    /*000c*/ 	.byte	0x04, 0x23
+    /*000e*/ 	.short	(.L_5 - .L_4)
+.align		4
+.L_4:
+    /*0010*/ 	.word	index@(_Z6VecAddPfS_S_i)
+    /*0014*/ 	.word	0x00000000
+
+
+//----- nvinfo : EIATTR_MIN_STACK_SIZE
+.align		4
+	    \end{lstlisting}
+	    
+	    Folgende Auflistung beinhaltet die ersten Zeilen der Ausgabe von nvdisasm bezogen auf das Beispiel der Vektoraddition (Hostbinary). Genauere Informationen unter \autocite{cudaBU}.
 		
+	    \begin{lstlisting}[caption=cuobjdump Output] 
+Fatbin elf code:
+================
+arch = sm_52
+code version = [1,7]
+producer = <unknown>
+host = linux
+compile_size = 64bit
+
+Fatbin elf code:
+================
+arch = sm_52
+code version = [1,7]
+producer = <unknown>
+host = linux
+compile_size = 64bit
+
+Fatbin ptx code:
+================
+arch = sm_52
+code version = [7,0]
+producer = <unknown>
+host = linux
+compile_size = 64bit
+compressed
+        \end{lstlisting}
